@@ -11,6 +11,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="bg-slate-50 font-sans text-slate-900">
+<!-- iframe 내부에서는 상단 네비게이션이 중복되어 보일 수 있으나, 단독 접속을 위해 유지합니다. -->
 <nav class="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/80 backdrop-blur-xl">
     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         <div class="flex items-center gap-2 cursor-pointer" onclick="location.href='${root}/main'">
@@ -20,9 +21,7 @@
 </nav>
 
 <div class="mx-auto max-w-4xl px-4 py-8">
-    <button onclick="location.href='${root}/main'" class="mb-6 flex items-center text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">
-        <i data-lucide="arrow-left" class="mr-2 h-4 w-4"></i> 목록으로 돌아가기
-    </button>
+    <%-- [삭제됨] 목록으로 돌아가기 버튼 --%>
 
     <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
         <div class="relative border-b border-slate-100 bg-slate-50 p-12 text-center overflow-hidden">
@@ -53,7 +52,6 @@
                     <i data-lucide="play" class="h-6 w-6 fill-current"></i> 지금 바로 풀기
                 </button>
 
-                <%-- [수정] 북마크 버튼 --%>
                 <button onclick="toggleBookmark(${workbook.id}, this)" class="flex items-center justify-center rounded-full border px-6 transition-colors border-slate-200 bg-white text-slate-400 hover:text-slate-600 hover:border-slate-300">
                     <i data-lucide="bookmark" class="h-6 w-6"></i>
                 </button>

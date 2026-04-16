@@ -6,7 +6,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Quizi - 학습의 새로운 기준</title>
+    <title>는zi - 학습의 새로운 기준</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -58,7 +58,7 @@
             </h1>
             <p class="mt-8 text-lg leading-8 text-slate-600 max-w-2xl mx-auto">
                 문제집 제작부터 풀이, 자동 채점, 그리고 오답노트까지.<br class="hidden sm:inline"/>
-                Quizi은 당신의 성장을 위한 올인원 학습 플랫폼입니다.
+                Quizi 당신의 성장을 위한 올인원 학습 플랫폼입니다.
             </p>
             <div class="mt-10 flex items-center justify-center gap-x-6">
                 <button onclick="location.href='${root}/login'" class="rounded-full bg-blue-600 px-8 py-4 text-base font-bold text-white shadow-xl shadow-blue-600/30 transition-all hover:bg-blue-500 hover:scale-105">

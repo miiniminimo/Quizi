@@ -9,35 +9,30 @@ import com.quizi.dto.QuestionDTO;
 
 public class WorkbookDAO {
 
-    // 1. 모든 문제집 목록 조회 (메인 페이지용 - 최신순)
-    public List<WorkbookDTO> selectAll() {
-        List<WorkbookDTO> list = new ArrayList<>();
-        String sql = "SELECT w.*, u.name as creator_name FROM workbooks w JOIN users u ON w.creator_id = u.id ORDER BY w.created_at DESC";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql);
-             ResultSet rs = pstmt.executeQuery()) {
-            while (rs.next()) {
-                WorkbookDTO dto = mapRowToWorkbook(rs);
-                list.add(dto);
-            }
-        } catch (Exception e) { e.printStackTrace(); }
-        return list;
-    }
-
-    // 2. 검색 및 필터링 (동적 쿼리)
-    public List<WorkbookDTO> searchWorkbooks(String keyword, String difficulty) {
+    // [수정] 검색 및 필터링 (폴더 기능 추가)
+    // keyword, difficulty, folderId, userId(폴더는 내 것만 봐야하므로)
+    public List<WorkbookDTO> searchWorkbooks(String keyword, String difficulty, String folderId, Long userId) {
         List<WorkbookDTO> list = new ArrayList<>();
 
         StringBuilder sql = new StringBuilder(
                 "SELECT w.*, u.name as creator_name FROM workbooks w JOIN users u ON w.creator_id = u.id WHERE 1=1"
         );
 
+        // 검색어
         if (keyword != null && !keyword.trim().isEmpty()) {
             sql.append(" AND (w.title LIKE ? OR w.description LIKE ? OR w.subject LIKE ?)");
         }
 
+        // 난이도
         if (difficulty != null && !difficulty.trim().isEmpty() && !difficulty.equals("ALL")) {
             sql.append(" AND w.difficulty = ?");
+        }
+
+        // [추가] 폴더 필터링 (로그인한 유저가 자신의 폴더를 볼 때만 적용)
+        // folderId가 ""(빈문자열)이면 전체보기이므로 필터링 안 함
+        // folderId가 있으면 해당 폴더의 문제집만 조회
+        if (userId != null && folderId != null && !folderId.isEmpty()) {
+            sql.append(" AND w.folder_id = ? AND w.creator_id = ?");
         }
 
         sql.append(" ORDER BY w.created_at DESC");
@@ -58,6 +53,11 @@ public class WorkbookDAO {
                 pstmt.setString(paramIndex++, difficulty);
             }
 
+            if (userId != null && folderId != null && !folderId.isEmpty()) {
+                pstmt.setLong(paramIndex++, Long.parseLong(folderId));
+                pstmt.setLong(paramIndex++, userId);
+            }
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     WorkbookDTO dto = mapRowToWorkbook(rs);
@@ -68,7 +68,17 @@ public class WorkbookDAO {
         return list;
     }
 
-    // 3. 문제집 생성 (트랜잭션 처리)
+    // ... (createWorkbook, selectById, selectQuestions, selectByCreator 등 나머지 메서드는 기존 유지) ...
+    // ... (아래 Helper 메서드 포함 기존 코드를 그대로 두시면 됩니다) ...
+
+    // (편의를 위해 mapRowToWorkbook 등 헬퍼 메서드와 나머지 코드는 생략하지 않고 전체 파일이 필요하면 말씀해주세요.
+    // 여기서는 searchWorkbooks 메서드만 변경하면 됩니다.)
+
+    // --- 기존 코드 복구용 ---
+    public List<WorkbookDTO> selectAll() {
+        return searchWorkbooks(null, null, null, null);
+    }
+
     public boolean createWorkbook(WorkbookDTO workbook) {
         Connection conn = null;
         PreparedStatement pstmt = null;
@@ -77,9 +87,8 @@ public class WorkbookDAO {
 
         try {
             conn = DBConnection.getConnection();
-            conn.setAutoCommit(false); // 트랜잭션 시작
+            conn.setAutoCommit(false);
 
-            // 1. 문제집 정보 저장
             String sqlWb = "INSERT INTO workbooks (creator_id, title, description, subject, difficulty, time_limit) VALUES (?, ?, ?, ?, ?, ?)";
             pstmt = conn.prepareStatement(sqlWb, Statement.RETURN_GENERATED_KEYS);
             pstmt.setLong(1, workbook.getCreatorId());
@@ -95,7 +104,6 @@ public class WorkbookDAO {
             if (rs.next()) workbookId = rs.getLong(1);
             else throw new SQLException("Creating workbook failed, no ID obtained.");
 
-            // 2. 문제 및 보기 저장
             insertQuestions(conn, workbookId, workbook.getQuestions());
 
             conn.commit();
@@ -103,9 +111,7 @@ public class WorkbookDAO {
 
         } catch (Exception e) {
             e.printStackTrace();
-            if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
-            }
+            if (conn != null) { try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); } }
         } finally {
             try { if (pstmt != null) pstmt.close(); } catch (Exception e) {}
             try { if (rs != null) rs.close(); } catch (Exception e) {}
@@ -114,7 +120,6 @@ public class WorkbookDAO {
         return result;
     }
 
-    // 4. 문제집 수정 (트랜잭션: 정보 업데이트 + 기존 문제 삭제 후 재등록)
     public boolean updateWorkbook(WorkbookDTO workbook) {
         Connection conn = null;
         PreparedStatement pstmt = null;
@@ -124,7 +129,6 @@ public class WorkbookDAO {
             conn = DBConnection.getConnection();
             conn.setAutoCommit(false);
 
-            // 1. 기본 정보 업데이트
             String sqlWb = "UPDATE workbooks SET title=?, description=?, subject=?, difficulty=?, time_limit=? WHERE id=?";
             pstmt = conn.prepareStatement(sqlWb);
             pstmt.setString(1, workbook.getTitle());
@@ -137,13 +141,11 @@ public class WorkbookDAO {
 
             if(affected == 0) throw new SQLException("Update failed");
 
-            // 2. 기존 문제 삭제
             String sqlDel = "DELETE FROM questions WHERE workbook_id=?";
             pstmt = conn.prepareStatement(sqlDel);
             pstmt.setLong(1, workbook.getId());
             pstmt.executeUpdate();
 
-            // 3. 새 문제 입력
             insertQuestions(conn, workbook.getId(), workbook.getQuestions());
 
             conn.commit();
@@ -158,11 +160,9 @@ public class WorkbookDAO {
         return result;
     }
 
-    // 5. ID로 문제집 상세 정보 조회
     public WorkbookDTO selectById(long id) {
         String sql = "SELECT w.*, u.name as creator_name FROM workbooks w JOIN users u ON w.creator_id = u.id WHERE w.id = ?";
         WorkbookDTO dto = null;
-
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, id);
@@ -175,7 +175,6 @@ public class WorkbookDAO {
         return dto;
     }
 
-    // 6. 특정 문제집의 문제 목록 조회 (보기 포함)
     public List<QuestionDTO> selectQuestions(long workbookId) {
         List<QuestionDTO> list = new ArrayList<>();
         String sqlQ = "SELECT * FROM questions WHERE workbook_id = ? ORDER BY id ASC";
@@ -213,7 +212,6 @@ public class WorkbookDAO {
         return list;
     }
 
-    // 7. 특정 사용자가 만든 문제집 목록 조회
     public List<WorkbookDTO> selectByCreator(long creatorId) {
         List<WorkbookDTO> list = new ArrayList<>();
         String sql = "SELECT w.*, (SELECT name FROM users WHERE id=w.creator_id) as creator_name FROM workbooks w WHERE creator_id = ? ORDER BY created_at DESC";
@@ -229,11 +227,9 @@ public class WorkbookDAO {
         return list;
     }
 
-    // 8. 북마크 토글 (있으면 삭제, 없으면 추가)
     public boolean toggleBookmark(long userId, long workbookId) {
         String checkSql = "SELECT 1 FROM bookmarks WHERE user_id=? AND workbook_id=?";
         boolean exists = false;
-
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(checkSql)) {
             pstmt.setLong(1, userId);
@@ -241,10 +237,8 @@ public class WorkbookDAO {
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) exists = true;
             }
-
             String actionSql = exists ? "DELETE FROM bookmarks WHERE user_id=? AND workbook_id=?"
                     : "INSERT INTO bookmarks (user_id, workbook_id) VALUES (?, ?)";
-
             try (PreparedStatement actionPstmt = conn.prepareStatement(actionSql)) {
                 actionPstmt.setLong(1, userId);
                 actionPstmt.setLong(2, workbookId);
@@ -254,7 +248,6 @@ public class WorkbookDAO {
         } catch (Exception e) { e.printStackTrace(); return false; }
     }
 
-    // 9. 사용자가 북마크한 문제집 ID 목록 조회
     public List<Long> selectSavedWorkbookIds(long userId) {
         List<Long> list = new ArrayList<>();
         String sql = "SELECT workbook_id FROM bookmarks WHERE user_id = ?";
@@ -268,13 +261,9 @@ public class WorkbookDAO {
         return list;
     }
 
-    // 10. 사용자가 저장한 문제집 전체 목록 조회
     public List<WorkbookDTO> selectSavedWorkbooks(long userId) {
         List<WorkbookDTO> list = new ArrayList<>();
-        String sql = "SELECT w.*, u.name as creator_name FROM bookmarks b " +
-                "JOIN workbooks w ON b.workbook_id = w.id " +
-                "JOIN users u ON w.creator_id = u.id " +
-                "WHERE b.user_id = ? ORDER BY b.created_at DESC";
+        String sql = "SELECT w.*, u.name as creator_name FROM bookmarks b JOIN workbooks w ON b.workbook_id = w.id JOIN users u ON w.creator_id = u.id WHERE b.user_id = ? ORDER BY b.created_at DESC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, userId);
@@ -287,7 +276,6 @@ public class WorkbookDAO {
         return list;
     }
 
-    // 11. 문제집 삭제
     public boolean deleteWorkbook(long workbookId) {
         String sql = "DELETE FROM workbooks WHERE id = ?";
         try (Connection conn = DBConnection.getConnection();
@@ -297,9 +285,6 @@ public class WorkbookDAO {
         } catch (Exception e) { e.printStackTrace(); return false; }
     }
 
-    // --- Helper Methods ---
-
-    // ResultSet에서 WorkbookDTO 매핑
     private WorkbookDTO mapRowToWorkbook(ResultSet rs) throws SQLException {
         WorkbookDTO dto = new WorkbookDTO();
         dto.setId(rs.getLong("id"));
@@ -316,7 +301,6 @@ public class WorkbookDAO {
         return dto;
     }
 
-    // 문제 리스트 일괄 Insert (생성/수정 공통 사용)
     private void insertQuestions(Connection conn, long workbookId, List<QuestionDTO> questions) throws SQLException {
         String sqlQ = "INSERT INTO questions (workbook_id, question_text, question_type, score, answer_text, explanation) VALUES (?, ?, ?, ?, ?, ?)";
         String sqlOpt = "INSERT INTO question_options (question_id, option_text, option_order) VALUES (?, ?, ?)";

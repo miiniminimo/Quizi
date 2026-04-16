@@ -29,7 +29,7 @@
     <div class="h-20 flex items-center px-8 border-b border-slate-800">
         <div class="flex items-center gap-2 cursor-pointer" onclick="location.href='${root}/main'">
             <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">Q</div>
-            <span class="text-xl font-bold tracking-tight">Quizi</span>
+            <span class="text-xl font-bold tracking-tight">QuizLab</span>
         </div>
     </div>
 
@@ -106,7 +106,7 @@
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between h-40 relative overflow-hidden group">
                 <div class="absolute right-0 top-0 w-32 h-32 bg-violet-50 rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
                 <div class="relative z-10">
-                    <div class="text-sm font-bold text-slate-500 mb-1">등록된 문제집</div>
+                    <div class="text-sm font-bold text-slate-500 mb-1">총 문제집 수</div>
                     <div class="text-4xl font-black text-slate-900 tracking-tight">${workbookCount}</div>
                 </div>
                 <div class="relative z-10 flex items-center text-xs font-bold text-violet-600 bg-violet-50 w-fit px-2 py-1 rounded-lg">
@@ -183,19 +183,28 @@
             </div>
         </div>
 
-        <!-- 2. 문제집 관리 테이블 -->
+        <!-- 2. 문제집 관리 테이블 (다중 선택 기능 유지) -->
         <div id="tab-workbooks" class="tab-content animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
                     <h3 class="font-bold text-lg text-slate-800">문제집 목록</h3>
-                    <div class="text-xs font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
-                        Total: ${workbookCount}
+                    <div class="flex items-center gap-3">
+                        <div class="text-xs font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
+                            Total: ${workbookCount}
+                        </div>
+                        <button onclick="deleteSelectedWorkbooks()" class="flex items-center gap-1.5 bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors">
+                            <i data-lucide="trash-2" class="h-3.5 w-3.5"></i> 선택 삭제
+                        </button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm text-left">
                         <thead class="bg-slate-50/50 text-slate-500">
                         <tr>
+                            <!-- 전체 선택 체크박스 -->
+                            <th class="px-4 py-4 w-12 text-center">
+                                <input type="checkbox" id="check-all" onchange="toggleAll(this)" class="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer">
+                            </th>
                             <th class="px-8 py-4 font-bold">ID</th>
                             <th class="px-8 py-4 font-bold w-1/3">제목</th>
                             <th class="px-8 py-4 font-bold">제작자</th>
@@ -207,6 +216,10 @@
                         <tbody class="divide-y divide-slate-100">
                         <c:forEach var="wb" items="${allWorkbooks}">
                             <tr class="group hover:bg-slate-50/80 transition-colors">
+                                <!-- 개별 선택 체크박스 -->
+                                <td class="px-4 py-4 text-center">
+                                    <input type="checkbox" name="wb-ids" value="${wb.id}" class="wb-check w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer">
+                                </td>
                                 <td class="px-8 py-4 font-mono text-xs text-slate-400">#${wb.id}</td>
                                 <td class="px-8 py-4">
                                     <div class="font-bold text-slate-800 line-clamp-1">${wb.title}</div>
@@ -245,9 +258,7 @@
     lucide.createIcons();
 
     function showTab(tabName) {
-        // 모든 탭 컨텐츠 숨기기
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        // 선택한 탭 보이기
         document.getElementById('tab-' + tabName).classList.add('active');
 
         // 메뉴 버튼 스타일 초기화 (기본 스타일)
@@ -276,6 +287,35 @@
                 }
             })
             .catch(() => alert('서버 통신 오류'));
+    }
+
+    // 전체 선택/해제
+    function toggleAll(source) {
+        const checkboxes = document.querySelectorAll('.wb-check');
+        checkboxes.forEach(cb => cb.checked = source.checked);
+    }
+
+    // 선택 삭제
+    function deleteSelectedWorkbooks() {
+        const checkboxes = document.querySelectorAll('.wb-check:checked');
+        if (checkboxes.length === 0) {
+            alert('삭제할 문제집을 선택해주세요.');
+            return;
+        }
+
+        if (!confirm(checkboxes.length + '개의 문제집을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+
+        const ids = Array.from(checkboxes).map(cb => cb.value).join(',');
+
+        fetch('${root}/admin?action=deleteBulkWorkbooks&ids=' + ids, { method: 'POST' })
+            .then(res => {
+                if (res.ok) {
+                    alert('일괄 삭제되었습니다.');
+                    location.reload();
+                } else {
+                    alert('삭제 중 오류가 발생했습니다.');
+                }
+            });
     }
 </script>
 </body>

@@ -38,7 +38,7 @@
   </c:if>
 
   <div class="space-y-8">
-    <!-- 기본 정보 -->
+    <!-- 기본 정보 (수정 가능) -->
     <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h3 class="mb-4 text-lg font-bold text-slate-900">기본 정보</h3>
       <div class="grid gap-6">
@@ -63,6 +63,11 @@
               <option>하</option>
             </select>
           </div>
+          <!-- [확인] 시간 제한 설정 추가됨 -->
+          <div class="w-32">
+            <label class="mb-1 block text-sm font-medium text-slate-700">제한 시간(분)</label>
+            <input id="wb-timelimit" type="number" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-right" placeholder="60">
+          </div>
         </div>
       </div>
     </div>
@@ -83,11 +88,8 @@
 <script>
   lucide.createIcons();
   let questions = [];
-  // 수정 모드일 경우 ID 저장
-  let workbookId = ${not empty workbookJson ? (workbookJson.contains("id") ? workbookJson.replaceAll(".*\"id\":(\\d+).*", "$1") : 0) : 0};
-  // 위 정규식 파싱이 불안정할 수 있으므로, 아래와 같이 안전하게 처리
+  let workbookId = 0;
   let currentMode = '${mode}';
-  let currentWorkbookData = null;
 
   function init() {
     const ocrText = document.getElementById('data-ocr').textContent;
@@ -96,18 +98,18 @@
     let data = null;
 
     if (editText && editText.trim() !== "") {
-      // 수정 모드 데이터 로드
-      try { data = JSON.parse(editText); currentWorkbookData = data; } catch(e){}
+      try { data = JSON.parse(editText); } catch(e){}
     } else if (ocrText && ocrText.trim() !== "") {
-      // OCR/AI 데이터 로드
       try { data = JSON.parse(ocrText); } catch(e){}
     }
 
     if (data) {
+      // [확인] 제목, 설명, 과목, 난이도, 시간 데이터를 폼에 채워넣음
       document.getElementById('wb-title').value = data.title || '';
       document.getElementById('wb-desc').value = data.description || '';
       document.getElementById('wb-subject').value = data.subject || '';
       document.getElementById('wb-difficulty').value = data.difficulty || '중';
+      document.getElementById('wb-timelimit').value = data.timeLimit || 60;
       questions = data.questions || [];
       if (data.id) workbookId = data.id; // ID 설정
     } else {
@@ -177,11 +179,10 @@
       description: document.getElementById('wb-desc').value,
       subject: document.getElementById('wb-subject').value,
       difficulty: document.getElementById('wb-difficulty').value,
-      timeLimit: 60,
+      timeLimit: parseInt(document.getElementById('wb-timelimit').value) || 60,
       questions: questions
     };
 
-    // [수정] 수정 모드라면 ID 포함
     if (currentMode === 'edit' && workbookId > 0) {
       data.id = workbookId;
     }
@@ -191,7 +192,6 @@
       return;
     }
 
-    // [수정] 모드에 따라 엔드포인트 변경 (생성: /create, 수정: /edit)
     const endpoint = currentMode === 'edit' ? '${root}/edit' : '${root}/create';
 
     fetch(endpoint, {
@@ -213,17 +213,3 @@
 </script>
 </body>
 </html>
-```
-
-#### 4️⃣ `src/main/webapp/views/mypage.jsp` (수정)
-마지막으로, 마이페이지의 **"수정"** 버튼이 실제로 수정 페이지로 이동하도록 링크를 연결합니다.
-
-```jsp
-<%-- [기존] --%>
-<%-- <button class="flex-1 ...">수정</button> --%>
-
-<%-- [수정 후] (마이페이지의 내가 만든 문제 탭 내부) --%>
-<button onclick="location.href='${root}/edit?id=${wb.id}'"
-        class="flex-1 rounded-lg bg-slate-50 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors">
-  수정
-</button>

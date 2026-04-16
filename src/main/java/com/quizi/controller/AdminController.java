@@ -16,13 +16,11 @@ import com.quizi.dao.WorkbookDAO;
 @WebServlet("/admin")
 public class AdminController extends HttpServlet {
 
-    // 관리자 페이지 조회
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         HttpSession session = request.getSession();
         UserDTO user = (UserDTO) session.getAttribute("user");
 
-        // [보안] 관리자가 아니면 메인으로 리다이렉트
         if (user == null || !"ADMIN".equals(user.getRole())) {
             response.sendRedirect(request.getContextPath() + "/main");
             return;
@@ -31,7 +29,6 @@ public class AdminController extends HttpServlet {
         UserDAO userDAO = new UserDAO();
         WorkbookDAO workbookDAO = new WorkbookDAO();
 
-        // 전체 회원 및 문제집 목록 가져오기
         List<UserDTO> allUsers = userDAO.getAllUsers();
         List<WorkbookDTO> allWorkbooks = workbookDAO.selectAll();
 
@@ -43,28 +40,51 @@ public class AdminController extends HttpServlet {
         request.getRequestDispatcher("/views/admin.jsp").forward(request, response);
     }
 
-    // 삭제 요청 처리 (AJAX)
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         HttpSession session = request.getSession();
         UserDTO user = (UserDTO) session.getAttribute("user");
 
-        // [보안] 관리자 권한 체크
         if (user == null || !"ADMIN".equals(user.getRole())) {
             response.sendError(403, "권한이 없습니다.");
             return;
         }
 
         String action = request.getParameter("action");
-        String idStr = request.getParameter("id");
 
+        // [추가됨] 문제집 일괄 삭제 로직
+        if ("deleteBulkWorkbooks".equals(action)) {
+            String idsParam = request.getParameter("ids"); // "1,2,5" 형태
+            if (idsParam != null && !idsParam.isEmpty()) {
+                String[] ids = idsParam.split(",");
+                WorkbookDAO dao = new WorkbookDAO();
+                boolean allSuccess = true;
+
+                for (String idStr : ids) {
+                    try {
+                        long id = Long.parseLong(idStr);
+                        if (!dao.deleteWorkbook(id)) allSuccess = false;
+                    } catch (NumberFormatException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                if (allSuccess) response.setStatus(200);
+                else response.sendError(500, "일부 항목 삭제 실패");
+            } else {
+                response.sendError(400, "삭제할 항목이 없습니다.");
+            }
+            return;
+        }
+
+        // 기존 단일 삭제 로직
+        String idStr = request.getParameter("id");
         if (idStr != null) {
             long id = Long.parseLong(idStr);
             boolean success = false;
 
             if ("deleteUser".equals(action)) {
                 UserDAO dao = new UserDAO();
-                // 자기 자신 삭제 방지
                 if (id == user.getId()) {
                     response.sendError(400, "자기 자신은 삭제할 수 없습니다.");
                     return;

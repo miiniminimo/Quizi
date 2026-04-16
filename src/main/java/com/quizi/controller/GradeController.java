@@ -12,7 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import com.quizi.dao.WorkbookDAO;
-import com.quizi.dao.SolveHistoryDAO; // 추가
+import com.quizi.dao.SolveHistoryDAO;
 import com.quizi.dto.QuestionDTO;
 import com.quizi.dto.WorkbookDTO;
 import com.quizi.dto.UserDTO;
@@ -23,7 +23,6 @@ public class GradeController extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         request.setCharacterEncoding("UTF-8");
 
-        // 로그인 체크 (비로그인 시 저장 안 함 or 로그인 페이지로)
         HttpSession session = request.getSession();
         UserDTO user = (UserDTO) session.getAttribute("user");
 
@@ -38,6 +37,8 @@ public class GradeController extends HttpServlet {
         int correctCount = 0;
 
         List<Map<String, Object>> details = new ArrayList<>();
+        // [추가] DB 저장용 심플 리스트
+        List<Map<String, Object>> dbDetails = new ArrayList<>();
 
         for (QuestionDTO q : questions) {
             totalScore += q.getScore();
@@ -50,20 +51,25 @@ public class GradeController extends HttpServlet {
                 correctCount++;
             }
 
+            // 화면 표시용
             Map<String, Object> map = new HashMap<>();
             map.put("question", q);
             map.put("userAnswer", userAnswer);
             map.put("isCorrect", isCorrect);
             details.add(map);
+
+            // [추가] DB 저장용 데이터 구성
+            Map<String, Object> dbMap = new HashMap<>();
+            dbMap.put("questionId", q.getId());
+            dbMap.put("userAnswer", userAnswer);
+            dbMap.put("isCorrect", isCorrect);
+            dbDetails.add(dbMap);
         }
 
-        // [추가된 부분] 학습 기록 DB 저장
         if (user != null) {
             SolveHistoryDAO historyDao = new SolveHistoryDAO();
-            historyDao.saveHistory(user.getId(), workbookId, earnedScore, totalScore, correctCount, questions.size());
-
-            // 문제집 풀이 횟수 증가 (선택사항 - WorkbookDAO에 메서드 필요)
-            // dao.incrementPlayCount(workbookId);
+            // [수정] 상세 내역(dbDetails)도 함께 전달
+            historyDao.saveHistory(user.getId(), workbookId, earnedScore, totalScore, correctCount, questions.size(), dbDetails);
         }
 
         request.setAttribute("workbook", workbook);

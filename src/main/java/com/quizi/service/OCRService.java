@@ -22,7 +22,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import com.quizi.dto.QuestionDTO;
 import com.quizi.dto.WorkbookDTO;
-import com.quizi.util.ConfigManager; // [추가] ConfigManager 임포트
+import com.quizi.util.ConfigManager; // [추가] 설정 관리자 임포트
 
 public class OCRService {
 
@@ -34,11 +34,9 @@ public class OCRService {
 
         String base64Image = encodeFileToBase64(imageFile);
         if (base64Image == null) {
-            System.err.println("❌ [OCRService] 이미지 인코딩 실패");
             return createErrorWorkbook("이미지 파일을 읽을 수 없습니다.");
         }
 
-        // GPT 프롬프트 (JSON 형식 강제)
         String prompt = "You are an expert exam digitizer. Analyze the provided image which contains exam questions. " +
                 "Extract all questions, options, and correct answers. " +
                 "Also, infer the academic subject of this exam based on the content (e.g., Mathematics, History, IT, English). " +
@@ -80,8 +78,16 @@ public class OCRService {
 
     private String callOpenAIVisionApi(String promptText, String base64Image) {
         try {
-            // [수정] ConfigManager를 통해 API Key 가져오기
+            // [수정] ConfigManager를 통해 API Key를 안전하게 가져옴
             String apiKey = ConfigManager.getProperty("openai.api.key");
+
+            if (apiKey == null || apiKey.isEmpty()) {
+                System.err.println("❌ [OCRService] API Key가 설정되지 않았습니다. config.properties 또는 환경변수를 확인하세요.");
+                return null;
+            }
+
+            // [보안 패치] 키 값의 공백과 따옴표 제거 (실수 방지)
+            apiKey = apiKey.trim().replace("\"", "").replace("'", "");
 
             URL url = new URL(API_URL);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -90,7 +96,6 @@ public class OCRService {
             conn.setRequestProperty("Authorization", "Bearer " + apiKey);
             conn.setDoOutput(true);
 
-            // Payload 구성
             JsonArray contentArray = new JsonArray();
 
             JsonObject textObj = new JsonObject();
@@ -128,10 +133,15 @@ public class OCRService {
                 os.write(input, 0, input.length);
             }
 
-            // 응답 코드 확인
             int responseCode = conn.getResponseCode();
             if (responseCode != 200) {
                 System.err.println("❌ [OCRService] API 오류 발생. 응답 코드: " + responseCode);
+
+                // [추가] 401 인증 오류 시 명확한 안내 메시지 출력
+                if (responseCode == 401) {
+                    System.err.println("👉 API Key가 올바르지 않습니다. config.properties 파일의 키 값을 확인해주세요. (따옴표나 공백 주의)");
+                }
+
                 try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = br.readLine()) != null) System.err.println(line);
@@ -142,9 +152,7 @@ public class OCRService {
             try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
                 StringBuilder response = new StringBuilder();
                 String responseLine;
-                while ((responseLine = br.readLine()) != null) {
-                    response.append(responseLine.trim());
-                }
+                while ((responseLine = br.readLine()) != null) response.append(responseLine.trim());
                 return response.toString();
             }
         } catch (Exception e) {

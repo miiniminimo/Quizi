@@ -1,20 +1,16 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<%@ page import="java.util.*" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <c:set var="root" value="${pageContext.request.contextPath}" />
 
 <%
-  // [추가된 로직] 오답노트 데이터를 문제집별로 그룹화
-  List<Map<String, Object>> list = (List<Map<String, Object>>) request.getAttribute("wrongNotes");
-  Map<String, List<Map<String, Object>>> groupedMap = new LinkedHashMap<>(); // 순서 유지를 위해 LinkedHashMap 사용
-
+  // 오답노트 그룹화 로직 (이전과 동일)
+  java.util.List<java.util.Map<String, Object>> list = (java.util.List<java.util.Map<String, Object>>) request.getAttribute("wrongNotes");
+  java.util.Map<String, java.util.List<java.util.Map<String, Object>>> groupedMap = new java.util.LinkedHashMap<>();
   if (list != null) {
-    for (Map<String, Object> note : list) {
+    for (java.util.Map<String, Object> note : list) {
       String title = (String) note.get("workbookTitle");
-      if (!groupedMap.containsKey(title)) {
-        groupedMap.put(title, new ArrayList<>());
-      }
+      if (!groupedMap.containsKey(title)) groupedMap.put(title, new java.util.ArrayList<>());
       groupedMap.get(title).add(note);
     }
   }
@@ -31,7 +27,6 @@
   <style>
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-    /* 아코디언 애니메이션 */
     .accordion-content { transition: max-height 0.3s ease-out; overflow: hidden; max-height: 0; }
     .accordion-content.open { max-height: 2000px; transition: max-height 0.5s ease-in; }
     .rotate-icon { transition: transform 0.3s; }
@@ -43,14 +38,14 @@
   <div class="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
     <div class="flex items-center gap-2 cursor-pointer" onclick="location.href='${root}/main'">
       <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white font-bold shadow-lg">Q</div>
-      <span class="text-xl font-bold tracking-tight text-slate-900">QuizLab</span>
+      <span class="text-xl font-bold tracking-tight text-slate-900">Quiz</span>
     </div>
     <a href="${root}/logout" class="text-sm font-bold text-slate-500 hover:text-red-500">로그아웃</a>
   </div>
 </nav>
 
 <div class="mx-auto max-w-5xl px-4 py-8">
-  <!-- 1. 프로필 섹션 (마이페이지 고유 레이아웃) -->
+  <!-- 1. 프로필 섹션 -->
   <div class="mb-8 flex flex-col md:flex-row items-center gap-8 rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
     <div class="h-24 w-24 rounded-full bg-slate-900 text-white flex items-center justify-center text-3xl font-bold shadow-xl">
       ${sessionScope.user.name.substring(0,1)}
@@ -61,8 +56,8 @@
     </div>
     <div class="flex gap-8 text-center">
       <div><div class="text-2xl font-black text-slate-900">${savedWorkbooks.size()}</div><div class="text-xs font-bold text-slate-400">저장</div></div>
-      <div><div class="text-2xl font-black text-slate-900">${myWorkbooks.size()}</div><div class="text-xs font-bold text-slate-400">제작</div></div>
-      <!-- 오답 개수 표시 삭제됨 -->
+      <div><div class="text-2xl font-black text-slate-900">${history.size()}</div><div class="text-xs font-bold text-slate-400">푼 문제집</div></div>
+      <div><div class="text-2xl font-black text-red-500">${wrongNotes.size()}</div><div class="text-xs font-bold text-slate-400">오답</div></div>
     </div>
   </div>
 
@@ -74,7 +69,7 @@
     <button onclick="showTab('created')" id="btn-created" class="flex-1 min-w-[100px] rounded-lg py-2.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-all">내가 만든 문제</button>
   </div>
 
-  <!-- 3. 탭 컨텐츠 영역 -->
+  <!-- 3. 탭 컨텐츠 -->
 
   <!-- [탭 1] 저장한 문제집 -->
   <div id="tab-saved" class="tab-content active">
@@ -109,7 +104,7 @@
     </div>
   </div>
 
-  <!-- [탭 2] 오답노트 (수정됨: 아코디언 방식) -->
+  <!-- [탭 2] 오답노트 -->
   <div id="tab-wrong" class="tab-content space-y-6">
     <c:choose>
       <c:when test="${empty groupedWrongNotes}">
@@ -121,13 +116,11 @@
       <c:otherwise>
         <div class="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
           <c:forEach var="entry" items="${groupedWrongNotes}" varStatus="status">
-            <!-- 문제집별 카드 (아코디언 헤더) -->
             <div class="rounded-3xl border bg-white p-6 shadow-sm border-slate-200 hover:shadow-md transition-all h-fit">
               <div class="flex items-center justify-between cursor-pointer" onclick="toggleAccordion('acc-${status.index}')">
                 <div class="flex-1 pr-4">
                   <div class="flex items-center gap-2 mb-2">
                     <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-600">${entry.value.size()}문제</span>
-                      <%-- 첫 번째 오답의 저장 날짜를 대표로 표시 --%>
                     <span class="text-xs font-medium text-slate-400">
                                                 <fmt:formatDate value="${entry.value[0].savedAt}" pattern="yyyy.MM.dd"/>
                                             </span>
@@ -138,8 +131,6 @@
                   <i data-lucide="chevron-down" class="h-5 w-5 text-slate-400"></i>
                 </button>
               </div>
-
-              <!-- 상세 오답 리스트 (아코디언 내용) -->
               <div id="acc-${status.index}" class="accordion-content border-t border-slate-100 mt-4 pt-4">
                 <div class="space-y-4">
                   <c:forEach var="note" items="${entry.value}">
@@ -177,13 +168,15 @@
     </c:choose>
   </div>
 
-  <!-- [탭 3] 학습 기록 -->
+  <!-- [탭 3] 학습 기록 (수정됨: 상세 페이지 이동) -->
   <div id="tab-history" class="tab-content space-y-4">
     <c:if test="${empty history}">
       <div class="py-20 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl">아직 푼 문제가 없습니다.</div>
     </c:if>
     <c:forEach var="h" items="${history}">
-      <div class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-6 hover:shadow-md transition-all">
+      <!-- [수정] onclick 이벤트 추가: 클릭 시 상세 내역 페이지로 이동 -->
+      <div class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-6 hover:shadow-md transition-all cursor-pointer"
+           onclick="location.href='${root}/history/detail?id=${h.id}&title=${h.workbookTitle}'">
         <div>
           <h4 class="font-bold text-slate-900 text-lg mb-1">${h.workbookTitle}</h4>
           <span class="text-xs font-medium text-slate-400"><fmt:formatDate value="${h.solvedAt}" pattern="yyyy.MM.dd HH:mm"/> 풀이</span>
@@ -214,6 +207,7 @@
               <p class="text-sm text-slate-500 mb-4 line-clamp-2 h-10">${wb.description}</p>
               <div class="flex gap-2">
                 <button onclick="location.href='${root}/detail?id=${wb.id}'" class="flex-1 rounded-lg bg-slate-50 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors">보기</button>
+                <button onclick="location.href='${root}/edit?id=${wb.id}'" class="flex-1 rounded-lg bg-blue-50 py-2 text-sm font-bold text-blue-600 hover:bg-blue-100 transition-colors">수정</button>
                 <button onclick="deleteWorkbook(${wb.id})" class="flex-1 rounded-lg bg-red-50 py-2 text-sm font-bold text-red-600 hover:bg-red-100 transition-colors">삭제</button>
               </div>
             </div>
@@ -228,22 +222,16 @@
   lucide.createIcons();
 
   function showTab(tabName) {
-    // 모든 탭 컨텐츠 숨김
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    // 선택한 탭 보이기
-    const selectedTab = document.getElementById('tab-' + tabName);
-    if(selectedTab) selectedTab.classList.add('active');
+    document.getElementById('tab-' + tabName).classList.add('active');
 
-    // 버튼 스타일 초기화
     document.querySelectorAll('button[id^="btn-"]').forEach(btn => {
       btn.className = 'flex-1 min-w-[100px] rounded-lg py-2.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-all';
     });
-    // 선택한 버튼 스타일 적용
     const selectedBtn = document.getElementById('btn-' + tabName);
     if(selectedBtn) selectedBtn.className = 'flex-1 min-w-[100px] rounded-lg py-2.5 text-sm font-bold bg-white text-slate-900 shadow-sm transition-all';
   }
 
-  // 아코디언 토글 함수
   function toggleAccordion(id) {
     const content = document.getElementById(id);
     const icon = document.getElementById('icon-' + id);

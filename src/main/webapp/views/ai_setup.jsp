@@ -9,6 +9,10 @@
     <title>Quizi - AI 문제 생성</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .input-tab { display: none; }
+        .input-tab.active { display: block; }
+    </style>
 </head>
 <body class="bg-slate-50 font-sans text-slate-900">
 <div class="mx-auto max-w-3xl px-4 py-8">
@@ -25,13 +29,36 @@
                 <i data-lucide="wand-2" class="h-8 w-8"></i>
             </div>
             <h3 class="text-xl font-bold text-slate-900">어떤 문제를 만들까요?</h3>
-            <p class="mt-2 text-sm text-slate-500">주제나 텍스트를 입력하면 AI가 자동으로 문제를 출제합니다.</p>
+            <p class="mt-2 text-sm text-slate-500">학습 자료나 주제를 입력하면 AI가 자동으로 문제를 출제합니다.</p>
         </div>
 
-        <form action="${root}/ai-generate" method="post" id="aiForm" class="space-y-6">
-            <div>
-                <label class="mb-2 block text-sm font-bold text-slate-700">주제 또는 텍스트 입력</label>
-                <textarea name="topic" required class="w-full rounded-xl border border-slate-200 p-4 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-50 h-32 resize-none" placeholder="예: 조선 시대의 역사, 피타고라스의 정리, 2024년 IT 트렌드 등..."></textarea>
+        <!-- 탭 선택 -->
+        <div class="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
+            <button onclick="switchTab('text')" id="tab-btn-text" class="flex-1 py-2 text-sm font-bold rounded-lg bg-white text-slate-900 shadow-sm transition-all">텍스트/주제 입력</button>
+            <button onclick="switchTab('file')" id="tab-btn-file" class="flex-1 py-2 text-sm font-bold rounded-lg text-slate-500 hover:text-slate-900 transition-all">파일 업로드 (PDF/IMG)</button>
+        </div>
+
+        <!-- [중요] enctype 추가 -->
+        <form action="${root}/ai-generate" method="post" enctype="multipart/form-data" id="aiForm" class="space-y-6">
+
+            <!-- 1. 텍스트 입력 탭 -->
+            <div id="tab-text" class="input-tab active">
+                <label class="mb-2 block text-sm font-bold text-slate-700">주제 또는 텍스트</label>
+                <textarea name="topic" id="input-topic" class="w-full rounded-xl border border-slate-200 p-4 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-50 h-32 resize-none" placeholder="예: 조선 시대의 역사, 2024년 IT 트렌드, 영어 지문..."></textarea>
+            </div>
+
+            <!-- 2. 파일 업로드 탭 -->
+            <div id="tab-file" class="input-tab">
+                <label class="mb-2 block text-sm font-bold text-slate-700">학습 자료 업로드</label>
+                <div class="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center hover:bg-blue-50/50 hover:border-blue-300 transition-colors cursor-pointer" onclick="document.getElementById('file-upload').click()">
+                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600 mb-3">
+                        <i data-lucide="upload" class="h-6 w-6"></i>
+                    </div>
+                    <p class="text-sm font-medium text-slate-900">파일을 선택하세요</p>
+                    <p class="text-xs text-slate-500 mt-1">PDF, JPG, PNG (최대 10MB)</p>
+                    <input type="file" name="file" id="file-upload" class="hidden" accept=".jpg,.jpeg,.png,.pdf" onchange="document.querySelector('#file-name').innerText = this.files[0].name">
+                    <p id="file-name" class="mt-4 text-sm font-bold text-blue-600"></p>
+                </div>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
@@ -59,18 +86,37 @@
             </button>
         </form>
 
-        <!-- 로딩 표시 (숨김) -->
         <div id="loading" class="hidden mt-8 text-center">
             <i data-lucide="loader-2" class="h-8 w-8 text-violet-600 animate-spin mx-auto mb-2"></i>
-            <p class="text-violet-600 font-bold">AI가 열심히 문제를 만들고 있습니다...</p>
+            <p class="text-violet-600 font-bold">AI가 학습 자료를 분석하여 문제를 만들고 있습니다...</p>
+            <p class="text-xs text-slate-400 mt-2">자료 양에 따라 시간이 걸릴 수 있습니다.</p>
         </div>
     </div>
 </div>
 <script>
     lucide.createIcons();
+
+    function switchTab(tab) {
+        document.querySelectorAll('.input-tab').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + tab).classList.add('active');
+
+        const btnText = document.getElementById('tab-btn-text');
+        const btnFile = document.getElementById('tab-btn-file');
+
+        if (tab === 'text') {
+            btnText.className = 'flex-1 py-2 text-sm font-bold rounded-lg bg-white text-slate-900 shadow-sm transition-all';
+            btnFile.className = 'flex-1 py-2 text-sm font-bold rounded-lg text-slate-500 hover:text-slate-900 transition-all';
+            document.getElementById('file-upload').value = ''; // 파일 초기화
+        } else {
+            btnFile.className = 'flex-1 py-2 text-sm font-bold rounded-lg bg-white text-slate-900 shadow-sm transition-all';
+            btnText.className = 'flex-1 py-2 text-sm font-bold rounded-lg text-slate-500 hover:text-slate-900 transition-all';
+            document.getElementById('input-topic').value = ''; // 텍스트 초기화
+        }
+    }
+
     document.getElementById('aiForm').onsubmit = function() {
-        document.getElementById('aiForm').style.display = 'none'; // 폼 숨기기
-        document.getElementById('loading').classList.remove('hidden'); // 로딩 보이기
+        document.getElementById('aiForm').style.display = 'none';
+        document.getElementById('loading').classList.remove('hidden');
     };
 </script>
 </body>

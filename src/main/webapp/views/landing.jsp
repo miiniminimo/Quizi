@@ -50,7 +50,7 @@
         <div class="mx-auto max-w-4xl text-center">
             <div class="mb-8 inline-flex items-center rounded-full border border-blue-200 bg-blue-50/50 px-3 py-1 text-sm font-medium text-blue-700 backdrop-blur-sm">
                 <span class="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-blue-600"></span>
-                AI OCR 기능 업데이트 v2.0
+                AI 문제 생성 v2.0
             </div>
             <h1 class="text-5xl font-extrabold tracking-tight text-slate-900 sm:text-7xl leading-tight">
                 <span class="block mb-2">당신의 학습 효율을</span>
@@ -124,15 +124,15 @@
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-8">
-        <!-- Feature 1: OCR -->
+        <!-- Feature 1: AI 이미지 인식 -->
         <div class="group relative overflow-hidden rounded-3xl bg-white border border-slate-100 p-8 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 md:col-span-2">
             <div class="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-blue-50 blur-3xl transition-all group-hover:bg-blue-100"></div>
             <div class="relative z-10">
                 <div class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
                     <i data-lucide="scan-line" class="h-6 w-6"></i>
                 </div>
-                <h3 class="text-2xl font-bold text-slate-900">AI OCR 문제 인식</h3>
-                <p class="mt-2 max-w-md text-slate-600">종이 문제집을 찍어서 올리세요. 최신 AI 엔진이 텍스트를 자동으로 인식하여 디지털 문제집으로 변환해 드립니다.</p>
+                <h3 class="text-2xl font-bold text-slate-900">AI 이미지 자동 인식</h3>
+                <p class="mt-2 max-w-md text-slate-600">시험지나 교재 사진을 업로드하세요. AI가 내용을 자동으로 분석해 디지털 문제집으로 변환해 드립니다.</p>
             </div>
         </div>
 

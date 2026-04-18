@@ -40,7 +40,6 @@
     <!-- My Workbooks (사이드바 리스트) -->
     <div class="mt-8 px-4 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider flex justify-between items-center">
       <span>My Workbooks</span>
-      <!-- [수정] + 버튼 클릭 시 페이지 이동 -->
       <button onclick="location.href='${root}/create'" class="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-50" title="새 문제집 만들기">
         <i data-lucide="plus" class="h-3 w-3"></i>
       </button>
@@ -131,13 +130,10 @@
           <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
             <i data-lucide="sparkles" class="h-5 w-5 text-yellow-500 fill-current"></i> 문제집 보기
           </h2>
-          <!-- AI/OCR 바로가기 버튼들 -->
+          <!-- AI 생성 바로가기 버튼 -->
           <div class="flex gap-2">
-            <button onclick="location.href='${root}/views/ocr_upload.jsp'" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-              <i data-lucide="scan-line" class="h-3.5 w-3.5"></i> OCR 업로드
-            </button>
-            <button onclick="location.href='${root}/views/ai_setup.jsp'" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-              <i data-lucide="sparkles" class="h-3.5 w-3.5 text-violet-500"></i> AI 생성
+            <button onclick="location.href='${root}/views/ai_setup.jsp'" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 text-xs font-bold text-white hover:bg-violet-700 transition-colors shadow-sm">
+              <i data-lucide="sparkles" class="h-3.5 w-3.5"></i> AI로 문제 만들기
             </button>
           </div>
         </div>
@@ -248,7 +244,6 @@
             });
   }
 
-  // [추가] 사이드바 목록 삭제 함수
   function deleteWorkbook(workbookId, event) {
     event.stopPropagation(); // 미리보기 열림 방지
     if(!confirm("정말 삭제하시겠습니까?")) return;

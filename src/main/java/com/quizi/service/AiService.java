@@ -17,7 +17,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import com.quizi.dto.QuestionDTO;
 import com.quizi.dto.WorkbookDTO;
-import com.quizi.util.ConfigManager; // [중요] ConfigManager 임포트
+import com.quizi.util.ConfigManager;
 
 public class AiService {
 
@@ -81,7 +81,6 @@ public class AiService {
     // API 호출 (텍스트 모드 & 비전 모드 통합)
     private String callOpenAIApi(String promptText, String base64Image) {
         try {
-            // [수정] ConfigManager를 통해 API Key 가져오기
             String apiKey = ConfigManager.getProperty("openai.api.key");
 
             if (apiKey == null || apiKey.isEmpty()) {
@@ -89,7 +88,6 @@ public class AiService {
                 return null;
             }
 
-            // [보안 패치] 키 값의 공백과 따옴표 제거 (OCRService와 동일하게 적용)
             apiKey = apiKey.trim().replace("\"", "").replace("'", "");
 
             URL url = new URL(API_URL);

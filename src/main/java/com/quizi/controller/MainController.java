@@ -9,10 +9,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import com.quizi.dao.WorkbookDAO;
-import com.quizi.dao.FolderDAO; // [추가]
+import com.quizi.dao.FolderDAO;
 import com.quizi.dto.WorkbookDTO;
 import com.quizi.dto.UserDTO;
-import com.quizi.dto.FolderDTO; // [추가]
+import com.quizi.dto.FolderDTO;
 
 @WebServlet("/main")
 public class MainController extends HttpServlet {
@@ -24,14 +24,13 @@ public class MainController extends HttpServlet {
 
         String keyword = request.getParameter("keyword");
         String difficulty = request.getParameter("difficulty");
-        String folderId = request.getParameter("folderId"); // [추가]
+        String folderId = request.getParameter("folderId");
 
         WorkbookDAO workbookDAO = new WorkbookDAO();
         List<WorkbookDTO> workbookList;
 
         Long userId = (user != null) ? user.getId() : null;
 
-        // [수정] searchWorkbooks 메서드 하나로 통합 호출 (folderId, userId 전달)
         workbookList = workbookDAO.searchWorkbooks(keyword, difficulty, folderId, userId);
 
         if (user != null) {
@@ -41,7 +40,6 @@ public class MainController extends HttpServlet {
             List<WorkbookDTO> myWorkbooks = workbookDAO.selectByCreator(user.getId());
             request.setAttribute("myWorkbooks", myWorkbooks);
 
-            // [추가] 내 폴더 목록 가져오기
             FolderDAO folderDAO = new FolderDAO();
             List<FolderDTO> folders = folderDAO.selectByUserId(user.getId());
             request.setAttribute("folders", folders);

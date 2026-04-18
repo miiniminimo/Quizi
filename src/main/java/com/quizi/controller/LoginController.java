@@ -48,7 +48,6 @@ public class LoginController extends HttpServlet {
             HttpSession session = request.getSession();
             session.setAttribute("user", user);
 
-            // [핵심 변경] 권한에 따른 페이지 이동 분기
             if ("ADMIN".equals(user.getRole())) {
                 // 관리자면 -> 관리자 페이지로
                 response.sendRedirect(request.getContextPath() + "/admin");

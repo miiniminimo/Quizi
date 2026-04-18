@@ -54,7 +54,7 @@ public class UserDAO {
         return user;
     }
 
-    // [신규] 모든 사용자 목록 조회 (관리자용)
+    // 모든 사용자 목록 조회 (관리자용)
     public List<UserDTO> getAllUsers() {
         List<UserDTO> list = new ArrayList<>();
         String sql = "SELECT * FROM users ORDER BY created_at DESC";
@@ -74,7 +74,7 @@ public class UserDAO {
         return list;
     }
 
-    // [신규] 사용자 삭제 (관리자용)
+    // 사용자 삭제 (관리자용)
     public boolean deleteUser(long userId) {
         String sql = "DELETE FROM users WHERE id = ?";
         try (Connection conn = DBConnection.getConnection();

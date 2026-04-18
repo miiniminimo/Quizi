@@ -7,7 +7,7 @@ public class UserDTO {
     private String email;
     private String password;
     private String name;
-    private String role; // [추가됨] 권한 (USER or ADMIN)
+    private String role; // 권한 (USER or ADMIN)
     private Timestamp createdAt;
 
     // 기본 생성자
@@ -26,8 +26,8 @@ public class UserDTO {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
-    public String getRole() { return role; } // [추가됨]
-    public void setRole(String role) { this.role = role; } // [추가됨]
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 
     public Timestamp getCreatedAt() { return createdAt; }
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }

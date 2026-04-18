@@ -105,12 +105,6 @@
             <version>2.11.0</version>
         </dependency>
 
-        <!-- Tess4J (OCR) -->
-        <dependency>
-            <groupId>net.sourceforge.tess4j</groupId>
-            <artifactId>tess4j</artifactId>
-            <version>5.9.0</version>
-        </dependency>
         <dependency>
             <groupId>org.mindrot</groupId>
             <artifactId>jbcrypt</artifactId>

@@ -30,13 +30,6 @@
     </div>
   </div>
 
-  <c:if test="${not empty ocrData}">
-    <div class="mb-6 rounded-lg bg-green-50 p-4 text-green-800 text-sm font-medium flex items-center gap-2 border border-green-200">
-      <i data-lucide="check-circle" class="h-5 w-5"></i>
-      <span>OCR/AI 분석이 완료되었습니다. 내용을 검토하고 저장하세요.</span>
-    </div>
-  </c:if>
-
   <div class="space-y-8">
     <!-- 기본 정보 (수정 가능) -->
     <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -63,7 +56,6 @@
               <option>하</option>
             </select>
           </div>
-          <!-- [확인] 시간 제한 설정 추가됨 -->
           <div class="w-32">
             <label class="mb-1 block text-sm font-medium text-slate-700">제한 시간(분)</label>
             <input id="wb-timelimit" type="number" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-right" placeholder="60">
@@ -81,8 +73,7 @@
   </div>
 </div>
 
-<!-- 데이터 전달용 Hidden Divs -->
-<div id="data-ocr" style="display:none;"><c:out value="${ocrData}" escapeXml="true" /></div>
+<!-- 수정 모드 데이터 전달용 -->
 <div id="data-edit" style="display:none;"><c:out value="${workbookJson}" escapeXml="true" /></div>
 
 <script>
@@ -92,26 +83,21 @@
   let currentMode = '${mode}';
 
   function init() {
-    const ocrText = document.getElementById('data-ocr').textContent;
     const editText = document.getElementById('data-edit').textContent;
-
     let data = null;
 
     if (editText && editText.trim() !== "") {
-      try { data = JSON.parse(editText); } catch(e){}
-    } else if (ocrText && ocrText.trim() !== "") {
-      try { data = JSON.parse(ocrText); } catch(e){}
+      try { data = JSON.parse(editText); } catch(e) {}
     }
 
     if (data) {
-      // [확인] 제목, 설명, 과목, 난이도, 시간 데이터를 폼에 채워넣음
       document.getElementById('wb-title').value = data.title || '';
       document.getElementById('wb-desc').value = data.description || '';
       document.getElementById('wb-subject').value = data.subject || '';
       document.getElementById('wb-difficulty').value = data.difficulty || '중';
       document.getElementById('wb-timelimit').value = data.timeLimit || 60;
       questions = data.questions || [];
-      if (data.id) workbookId = data.id; // ID 설정
+      if (data.id) workbookId = data.id;
     } else {
       addQuestion();
     }

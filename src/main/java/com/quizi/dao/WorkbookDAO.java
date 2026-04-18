@@ -9,7 +9,6 @@ import com.quizi.dto.QuestionDTO;
 
 public class WorkbookDAO {
 
-    // [수정] 검색 및 필터링 (폴더 기능 추가)
     // keyword, difficulty, folderId, userId(폴더는 내 것만 봐야하므로)
     public List<WorkbookDTO> searchWorkbooks(String keyword, String difficulty, String folderId, Long userId) {
         List<WorkbookDTO> list = new ArrayList<>();
@@ -28,9 +27,7 @@ public class WorkbookDAO {
             sql.append(" AND w.difficulty = ?");
         }
 
-        // [추가] 폴더 필터링 (로그인한 유저가 자신의 폴더를 볼 때만 적용)
-        // folderId가 ""(빈문자열)이면 전체보기이므로 필터링 안 함
-        // folderId가 있으면 해당 폴더의 문제집만 조회
+        // 폴더 필터링: folderId가 있으면 해당 폴더의 문제집만 조회
         if (userId != null && folderId != null && !folderId.isEmpty()) {
             sql.append(" AND w.folder_id = ? AND w.creator_id = ?");
         }
@@ -68,13 +65,6 @@ public class WorkbookDAO {
         return list;
     }
 
-    // ... (createWorkbook, selectById, selectQuestions, selectByCreator 등 나머지 메서드는 기존 유지) ...
-    // ... (아래 Helper 메서드 포함 기존 코드를 그대로 두시면 됩니다) ...
-
-    // (편의를 위해 mapRowToWorkbook 등 헬퍼 메서드와 나머지 코드는 생략하지 않고 전체 파일이 필요하면 말씀해주세요.
-    // 여기서는 searchWorkbooks 메서드만 변경하면 됩니다.)
-
-    // --- 기존 코드 복구용 ---
     public List<WorkbookDTO> selectAll() {
         return searchWorkbooks(null, null, null, null);
     }

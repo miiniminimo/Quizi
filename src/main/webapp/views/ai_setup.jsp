@@ -29,13 +29,17 @@
                 <i data-lucide="wand-2" class="h-8 w-8"></i>
             </div>
             <h3 class="text-xl font-bold text-slate-900">어떤 문제를 만들까요?</h3>
-            <p class="mt-2 text-sm text-slate-500">학습 자료나 주제를 입력하면 AI가 자동으로 문제를 출제합니다.</p>
+            <p class="mt-2 text-sm text-slate-500">주제를 입력하거나, 시험지·교재 이미지를 업로드하면 AI가 자동으로 문제를 출제합니다.</p>
         </div>
 
         <!-- 탭 선택 -->
         <div class="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
-            <button onclick="switchTab('text')" id="tab-btn-text" class="flex-1 py-2 text-sm font-bold rounded-lg bg-white text-slate-900 shadow-sm transition-all">텍스트/주제 입력</button>
-            <button onclick="switchTab('file')" id="tab-btn-file" class="flex-1 py-2 text-sm font-bold rounded-lg text-slate-500 hover:text-slate-900 transition-all">파일 업로드 (PDF/IMG)</button>
+            <button onclick="switchTab('text')" id="tab-btn-text" class="flex-1 py-2 text-sm font-bold rounded-lg bg-white text-slate-900 shadow-sm transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="type" class="h-3.5 w-3.5"></i> 주제 입력
+            </button>
+            <button onclick="switchTab('file')" id="tab-btn-file" class="flex-1 py-2 text-sm font-bold rounded-lg text-slate-500 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="image" class="h-3.5 w-3.5"></i> 이미지/PDF 업로드
+            </button>
         </div>
 
         <!-- [중요] enctype 추가 -->
@@ -49,10 +53,11 @@
 
             <!-- 2. 파일 업로드 탭 -->
             <div id="tab-file" class="input-tab">
-                <label class="mb-2 block text-sm font-bold text-slate-700">학습 자료 업로드</label>
+                <label class="mb-2 block text-sm font-bold text-slate-700">시험지 / 교재 이미지 업로드</label>
+                <p class="mb-3 text-xs text-slate-500">이미지나 PDF를 업로드하면 AI가 내용을 자동으로 인식해 문제집을 만들어드립니다.</p>
                 <div class="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center hover:bg-blue-50/50 hover:border-blue-300 transition-colors cursor-pointer" onclick="document.getElementById('file-upload').click()">
                     <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600 mb-3">
-                        <i data-lucide="upload" class="h-6 w-6"></i>
+                        <i data-lucide="scan-line" class="h-6 w-6"></i>
                     </div>
                     <p class="text-sm font-medium text-slate-900">파일을 선택하세요</p>
                     <p class="text-xs text-slate-500 mt-1">PDF, JPG, PNG (최대 10MB)</p>

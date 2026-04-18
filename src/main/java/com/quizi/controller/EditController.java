@@ -59,6 +59,17 @@ public class EditController extends HttpServlet {
         Gson gson = new Gson();
         WorkbookDTO workbook = gson.fromJson(reader, WorkbookDTO.class);
 
+        // 정답 필수 검증
+        if (workbook.getQuestions() != null) {
+            for (QuestionDTO q : workbook.getQuestions()) {
+                if (q.getAnswerText() == null || q.getAnswerText().trim().isEmpty()) {
+                    response.setStatus(400);
+                    response.getWriter().write("{\"status\":\"error\",\"message\":\"정답이 입력되지 않은 문제가 있습니다.\"}");
+                    return;
+                }
+            }
+        }
+
         WorkbookDAO dao = new WorkbookDAO();
         boolean success = dao.updateWorkbook(workbook);
 

@@ -149,9 +149,10 @@
                                         <input type="radio" name="ans-\${idx}" \${q.answerText === opt && opt !== '' ? 'checked' : ''} onchange="updateQuestion(\${idx}, 'answerText', '\${opt}')">
                                     </div>
                                 `).join('')}
+                                \${!q.answerText ? `<p class="text-xs text-red-500 mt-1 font-medium">※ 라디오 버튼으로 정답 보기를 선택해주세요 (필수)</p>` : ''}
     </div>
       ` : `
-      <input value="\${q.answerText}" onchange="updateQuestion(\${idx}, 'answerText', this.value)" placeholder="정답 텍스트를 입력하세요" class="w-full rounded-md bg-green-50 px-3 py-2 text-sm text-green-800 placeholder-green-400 focus:outline-none">
+      <input value="\${q.answerText}" onchange="updateQuestion(\${idx}, 'answerText', this.value)" placeholder="정답을 입력하세요 (필수)" class="w-full rounded-md bg-green-50 px-3 py-2 text-sm text-green-800 placeholder-green-400 focus:outline-none">
               `}
 
                         <textarea onchange="updateQuestion(\${idx}, 'explanation', this.value)" placeholder="해설을 입력하세요" rows="2" class="w-full rounded-md bg-slate-50 px-3 py-2 text-sm focus:outline-none">\${q.explanation || ''}</textarea>
@@ -190,6 +191,23 @@
     if(!data.title || questions.length === 0) {
       alert('제목과 최소 1개의 문제를 입력해주세요.');
       return;
+    }
+
+    // 정답 필수 유효성 검사
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      if (!q.questionText || q.questionText.trim() === '') {
+        alert((i + 1) + '번 문제의 질문 내용을 입력해주세요.');
+        return;
+      }
+      if (!q.answerText || q.answerText.trim() === '') {
+        if (q.questionType === 'multiple') {
+          alert((i + 1) + '번 문제의 정답 보기를 선택해주세요.\n(라디오 버튼을 클릭하여 정답을 지정하세요)');
+        } else {
+          alert((i + 1) + '번 문제의 정답을 입력해주세요.');
+        }
+        return;
+      }
     }
 
     const endpoint = currentMode === 'edit' ? '${root}/edit' : '${root}/create';

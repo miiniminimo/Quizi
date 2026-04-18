@@ -2,8 +2,9 @@ package com.quizi.controller;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import com.google.gson.Gson; // Gson 라이브러리 필요
+import com.google.gson.Gson;
 import com.quizi.dao.WorkbookDAO;
+import com.quizi.dto.QuestionDTO;
 import com.quizi.dto.UserDTO;
 import com.quizi.dto.WorkbookDTO;
 import jakarta.servlet.ServletException;
@@ -50,11 +51,22 @@ public class CreateController extends HttpServlet {
         // 2. 작성자 ID 설정
         workbook.setCreatorId(user.getId());
 
-        // 3. DB 저장
+        // 3. 정답 필수 검증
+        if (workbook.getQuestions() != null) {
+            for (QuestionDTO q : workbook.getQuestions()) {
+                if (q.getAnswerText() == null || q.getAnswerText().trim().isEmpty()) {
+                    response.setStatus(400);
+                    response.getWriter().write("{\"status\":\"error\",\"message\":\"정답이 입력되지 않은 문제가 있습니다.\"}");
+                    return;
+                }
+            }
+        }
+
+        // 4. DB 저장
         WorkbookDAO dao = new WorkbookDAO();
         boolean success = dao.createWorkbook(workbook);
 
-        // 4. 결과 응답
+        // 5. 결과 응답
         if (success) {
             response.getWriter().write("{\"status\":\"success\"}");
         } else {

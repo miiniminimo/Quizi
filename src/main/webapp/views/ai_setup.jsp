@@ -42,7 +42,6 @@
             </button>
         </div>
 
-        <!-- [중요] enctype 추가 -->
         <form action="${root}/ai-generate" method="post" enctype="multipart/form-data" id="aiForm" class="space-y-6">
 
             <!-- 1. 텍스트 입력 탭 -->
@@ -101,6 +100,10 @@
 <script>
     lucide.createIcons();
 
+    const BASE_TAB = 'flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5';
+    const ACTIVE_TAB = BASE_TAB + ' bg-white text-slate-900 shadow-sm';
+    const INACTIVE_TAB = BASE_TAB + ' text-slate-500 hover:text-slate-900';
+
     function switchTab(tab) {
         document.querySelectorAll('.input-tab').forEach(el => el.classList.remove('active'));
         document.getElementById('tab-' + tab).classList.add('active');
@@ -109,13 +112,13 @@
         const btnFile = document.getElementById('tab-btn-file');
 
         if (tab === 'text') {
-            btnText.className = 'flex-1 py-2 text-sm font-bold rounded-lg bg-white text-slate-900 shadow-sm transition-all';
-            btnFile.className = 'flex-1 py-2 text-sm font-bold rounded-lg text-slate-500 hover:text-slate-900 transition-all';
-            document.getElementById('file-upload').value = ''; // 파일 초기화
+            btnText.className = ACTIVE_TAB;
+            btnFile.className = INACTIVE_TAB;
+            document.getElementById('file-upload').value = '';
         } else {
-            btnFile.className = 'flex-1 py-2 text-sm font-bold rounded-lg bg-white text-slate-900 shadow-sm transition-all';
-            btnText.className = 'flex-1 py-2 text-sm font-bold rounded-lg text-slate-500 hover:text-slate-900 transition-all';
-            document.getElementById('input-topic').value = ''; // 텍스트 초기화
+            btnFile.className = ACTIVE_TAB;
+            btnText.className = INACTIVE_TAB;
+            document.getElementById('input-topic').value = '';
         }
     }
 

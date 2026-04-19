@@ -25,22 +25,16 @@ public class LoginController extends HttpServlet {
         String password = request.getParameter("password");
 
         UserDAO dao = new UserDAO();
-        // 1. 이메일(아이디)로 사용자 정보 가져오기
         UserDTO user = dao.getUserByEmail(email);
 
         boolean isValid = false;
 
-        if (user != null) {
+        if (user != null && user.getPassword() != null) {
             try {
-                // 2. BCrypt 암호화된 비밀번호 검증
-                if (BCrypt.checkpw(password, user.getPassword())) {
-                    isValid = true;
-                }
+                isValid = BCrypt.checkpw(password, user.getPassword());
             } catch (IllegalArgumentException e) {
-                // 3. [예외 처리] 평문 비밀번호일 경우 단순 비교 (admin 계정용)
-                if (password.equals(user.getPassword())) {
-                    isValid = true;
-                }
+                // BCrypt 형식이 아닌 비밀번호는 인증 실패로 처리
+                isValid = false;
             }
         }
 

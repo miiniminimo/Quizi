@@ -23,6 +23,22 @@
         <h2 class="text-2xl font-bold text-slate-900">AI 맞춤 문제 생성</h2>
     </div>
 
+    <%-- 에러 메시지 표시 --%>
+    <%
+        String error = request.getParameter("error");
+        String errorMsg = null;
+        if ("empty".equals(error))        errorMsg = "주제를 입력하거나 파일을 업로드해주세요.";
+        else if ("ai_fail".equals(error)) errorMsg = "AI가 문제를 생성하지 못했습니다. 다른 주제나 이미지로 다시 시도해주세요.";
+        else if ("db_fail".equals(error)) errorMsg = "문제집 저장에 실패했습니다. 잠시 후 다시 시도해주세요.";
+        else if (error != null)           errorMsg = "오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+    %>
+    <% if (errorMsg != null) { %>
+    <div class="mb-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        <i data-lucide="alert-circle" class="h-4 w-4 shrink-0"></i>
+        <%= errorMsg %>
+    </div>
+    <% } %>
+
     <div class="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div class="mb-8 text-center">
             <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 text-white shadow-lg">

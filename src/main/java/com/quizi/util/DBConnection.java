@@ -1,40 +1,43 @@
 package com.quizi.util;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class DBConnection {
 
-    private static final String DRIVER = "com.mysql.cj.jdbc.Driver";
+    private static final HikariDataSource dataSource;
 
-    public static Connection getConnection() {
-        Connection conn = null;
-        try {
-            Class.forName(DRIVER);
+    static {
+        HikariConfig config = new HikariConfig();
+        config.setDriverClassName("com.mysql.cj.jdbc.Driver");
+        config.setJdbcUrl(ConfigManager.getProperty("db.url"));
+        config.setUsername(ConfigManager.getProperty("db.username"));
+        config.setPassword(ConfigManager.getProperty("db.password"));
 
-            // [수정] 설정 파일에서 정보 가져오기
-            String url = ConfigManager.getProperty("db.url");
-            String user = ConfigManager.getProperty("db.username");
-            String pass = ConfigManager.getProperty("db.password");
+        config.setMaximumPoolSize(10);
+        config.setMinimumIdle(2);
+        config.setConnectionTimeout(30_000);  // 30초
+        config.setIdleTimeout(600_000);       // 10분
+        config.setMaxLifetime(1_800_000);     // 30분
+        config.setPoolName("QuiziPool");
 
-            conn = DriverManager.getConnection(url, user, pass);
-            // System.out.println("[DBConnection] Database connected successfully."); // 로그가 너무 많으면 주석 처리
-        } catch (ClassNotFoundException e) {
-            System.err.println("[DBConnection] MySQL Driver not found.");
-            e.printStackTrace();
-        } catch (SQLException e) {
-            System.err.println("[DBConnection] Connection failed.");
-            e.printStackTrace();
-        }
-        return conn;
+        dataSource = new HikariDataSource(config);
+    }
+
+    public static Connection getConnection() throws SQLException {
+        return dataSource.getConnection();
     }
 
     public static void close(Connection conn) {
-        try {
-            if (conn != null && !conn.isClosed()) conn.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
+        if (conn != null) {
+            try {
+                conn.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

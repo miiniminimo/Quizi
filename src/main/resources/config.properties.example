@@ -1,5 +1,0 @@
-db.url=jdbc:mysql://localhost:3306/quizi
-db.user=root
-db.password=YOUR_PASSWORD
-
-openai.apiKey=YOUR_API_KEY

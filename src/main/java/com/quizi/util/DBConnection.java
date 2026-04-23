@@ -8,9 +8,9 @@ import java.sql.SQLException;
 
 public class DBConnection {
 
-    private static final HikariDataSource dataSource;
+    private static volatile HikariDataSource dataSource;
 
-    static {
+    private static HikariDataSource createDataSource() {
         HikariConfig config = new HikariConfig();
         config.setDriverClassName("com.mysql.cj.jdbc.Driver");
         config.setJdbcUrl(ConfigManager.getProperty("db.url"));
@@ -23,12 +23,24 @@ public class DBConnection {
         config.setIdleTimeout(600_000);       // 10분
         config.setMaxLifetime(1_800_000);     // 30분
         config.setPoolName("QuiziPool");
+        config.setInitializationFailTimeout(-1); // 시작 시 DB 연결 실패해도 앱 구동 허용
 
-        dataSource = new HikariDataSource(config);
+        return new HikariDataSource(config);
+    }
+
+    private static HikariDataSource getDataSource() {
+        if (dataSource == null) {
+            synchronized (DBConnection.class) {
+                if (dataSource == null) {
+                    dataSource = createDataSource();
+                }
+            }
+        }
+        return dataSource;
     }
 
     public static Connection getConnection() throws SQLException {
-        return dataSource.getConnection();
+        return getDataSource().getConnection();
     }
 
     public static void close(Connection conn) {

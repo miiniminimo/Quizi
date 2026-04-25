@@ -266,6 +266,53 @@ public class WorkbookDAO {
         return list;
     }
 
+    /**
+     * DB에서 무작위 문제 하나를 뽑아 반환합니다. (일일 슬랙 알림용)
+     * 반환 객체의 workbookId 필드에는 문제집 ID가, questionText 등에 내용이 담깁니다.
+     * 문제집 제목은 별도 selectById()로 조회하거나 이 쿼리 결과에서 파싱하세요.
+     */
+    public QuestionDTO selectRandomQuestion() {
+        String sql = "SELECT q.*, w.title AS workbook_title FROM questions q " +
+                     "JOIN workbooks w ON q.workbook_id = w.id " +
+                     "ORDER BY RAND() LIMIT 1";
+        String sqlOpt = "SELECT option_text FROM question_options WHERE question_id = ? ORDER BY option_order ASC";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+
+            if (rs.next()) {
+                QuestionDTO q = new QuestionDTO();
+                q.setId(rs.getLong("id"));
+                q.setWorkbookId(rs.getLong("workbook_id"));
+                q.setQuestionText(rs.getString("question_text"));
+                q.setQuestionType(rs.getString("question_type"));
+                q.setScore(rs.getInt("score"));
+                q.setAnswerText(rs.getString("answer_text"));
+                q.setExplanation(rs.getString("explanation"));
+                // workbook_title을 임시로 explanation 필드에 붙이지 않고, 별도로 꺼낼 수 있도록 옵션 활용
+                // -> SlackNotifier에서 workbookTitle 파라미터로 전달하기 위해 바로 꺼냄
+                String workbookTitle = rs.getString("workbook_title");
+                // workbookTitle은 호출자가 rs에서 직접 못 가져가므로 간단히 questionText 맨 앞에 태그로 저장
+                // 실제로는 별도 DTO가 낫지만 기존 DTO 변경 최소화를 위해 아래 방식 사용
+                q.setQuestionText(workbookTitle + "\u0000" + q.getQuestionText()); // 구분자 \0 사용
+
+                if ("multiple".equals(q.getQuestionType())) {
+                    List<String> options = new ArrayList<>();
+                    try (PreparedStatement pstmtOpt = conn.prepareStatement(sqlOpt)) {
+                        pstmtOpt.setLong(1, q.getId());
+                        try (ResultSet rsOpt = pstmtOpt.executeQuery()) {
+                            while (rsOpt.next()) options.add(rsOpt.getString("option_text"));
+                        }
+                    }
+                    q.setOptions(options);
+                }
+                return q;
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return null;
+    }
+
     public boolean deleteWorkbook(long workbookId) {
         String sql = "DELETE FROM workbooks WHERE id = ?";
         try (Connection conn = DBConnection.getConnection();

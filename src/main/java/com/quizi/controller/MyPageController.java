@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import com.quizi.dao.DailyQuizDAO;
 import com.quizi.dao.WrongNoteDAO;
 import com.quizi.dao.WorkbookDAO;
 import com.quizi.dao.SolveHistoryDAO;
@@ -40,10 +41,16 @@ public class MyPageController extends HttpServlet {
         SolveHistoryDAO shDao = new SolveHistoryDAO();
         List<Map<String, Object>> history = shDao.selectByUserId(userId);
 
+        DailyQuizDAO dailyDao = new DailyQuizDAO();
+        List<java.util.Map<String, Object>> dailyHistory = dailyDao.getUserHistory(userId);
+        String dailyTopic = dailyDao.getUserTopic(userId);
+
         request.setAttribute("wrongNotes", wrongNotes);
         request.setAttribute("myWorkbooks", myWorkbooks);
-        request.setAttribute("savedWorkbooks", savedWorkbooks); // 전달
+        request.setAttribute("savedWorkbooks", savedWorkbooks);
         request.setAttribute("history", history);
+        request.setAttribute("dailyHistory", dailyHistory);
+        request.setAttribute("dailyTopic", dailyTopic);
 
         request.getRequestDispatcher("/views/mypage.jsp").forward(request, response);
     }

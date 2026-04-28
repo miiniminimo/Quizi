@@ -11,10 +11,10 @@ import jakarta.servlet.http.HttpSession;
 import com.quizi.dao.DailyQuizDAO;
 import com.quizi.dao.WorkbookDAO;
 import com.quizi.dao.FolderDAO;
-import com.quizi.dto.QuestionDTO;
 import com.quizi.dto.WorkbookDTO;
 import com.quizi.dto.UserDTO;
 import com.quizi.dto.FolderDTO;
+import java.util.Map;
 
 @WebServlet("/main")
 public class MainController extends HttpServlet {
@@ -51,9 +51,17 @@ public class MainController extends HttpServlet {
         request.setAttribute("searchKeyword", keyword);
         request.setAttribute("searchDifficulty", difficulty);
 
-        // 오늘의 문제 (Slack으로 전송된 문제) — 없으면 null (배너 미표시)
-        QuestionDTO dailyQuestion = new DailyQuizDAO().getTodayQuestion();
-        request.setAttribute("dailyQuestion", dailyQuestion);
+        // 오늘의 문제 (로그인 유저만, lazy 생성)
+        if (user != null) {
+            DailyQuizDAO dailyDao = new DailyQuizDAO();
+            Map<String, Object> entry = dailyDao.getOrCreateTodayEntry(user.getId());
+            if (!entry.isEmpty()) {
+                request.setAttribute("dailyQuestion", entry.get("question"));
+                request.setAttribute("dailyLogId",    entry.get("logId"));
+                Map<String, Object> answer = dailyDao.getAnswer(user.getId(), (Long) entry.get("logId"));
+                request.setAttribute("dailyAnswer", answer); // null이면 미답변
+            }
+        }
 
         request.getRequestDispatcher("/views/main.jsp").forward(request, response);
     }

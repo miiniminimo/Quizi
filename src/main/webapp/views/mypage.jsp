@@ -61,9 +61,31 @@
     </div>
   </div>
 
+  <!-- 주제 설정 -->
+  <div class="mb-6 rounded-2xl border border-violet-200 bg-violet-50 p-5">
+    <div class="flex items-center gap-2 mb-3">
+      <i data-lucide="target" class="h-4 w-4 text-violet-600"></i>
+      <span class="text-sm font-bold text-violet-700">오늘의 문제 주제 설정</span>
+      <span class="text-xs text-slate-400">설정하면 해당 주제의 문제가 우선 출제됩니다</span>
+    </div>
+    <form action="${root}/daily-quiz/topic" method="post" class="flex gap-2">
+      <input type="text" name="topic" value="${dailyTopic}" placeholder="예: 한국사, 영어, 수학..."
+             class="flex-1 rounded-xl border border-violet-200 px-4 py-2 text-sm focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100 bg-white">
+      <button type="submit" class="rounded-xl bg-violet-600 px-5 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
+        저장
+      </button>
+      <c:if test="${not empty dailyTopic}">
+      <button type="submit" name="topic" value="" class="rounded-xl bg-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-300 transition-colors">
+        초기화
+      </button>
+      </c:if>
+    </form>
+  </div>
+
   <!-- 2. 탭 메뉴 -->
   <div class="mb-8 flex gap-2 rounded-xl bg-slate-100 p-1 overflow-x-auto">
-    <button onclick="showTab('saved')" id="btn-saved" class="flex-1 min-w-[100px] rounded-lg py-2.5 text-sm font-bold bg-white text-slate-900 shadow-sm transition-all">저장한 문제집</button>
+    <button onclick="showTab('daily')" id="btn-daily" class="flex-1 min-w-[100px] rounded-lg py-2.5 text-sm font-bold bg-white text-slate-900 shadow-sm transition-all">오늘의 문제</button>
+    <button onclick="showTab('saved')" id="btn-saved" class="flex-1 min-w-[100px] rounded-lg py-2.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-all">저장한 문제집</button>
     <button onclick="showTab('wrong')" id="btn-wrong" class="flex-1 min-w-[100px] rounded-lg py-2.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-all">오답노트</button>
     <button onclick="showTab('history')" id="btn-history" class="flex-1 min-w-[100px] rounded-lg py-2.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-all">학습 기록</button>
     <button onclick="showTab('created')" id="btn-created" class="flex-1 min-w-[100px] rounded-lg py-2.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-all">내가 만든 문제</button>
@@ -71,8 +93,91 @@
 
   <!-- 3. 탭 컨텐츠 -->
 
+  <!-- [탭 0] 오늘의 문제 기록 -->
+  <div id="tab-daily" class="tab-content active">
+    <c:choose>
+      <c:when test="${empty dailyHistory}">
+        <div class="py-20 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl">
+          <i data-lucide="calendar-days" class="h-12 w-12 mb-4 mx-auto opacity-20"></i>
+          <p>아직 오늘의 문제 기록이 없습니다.</p>
+          <p class="text-xs mt-2">메인 페이지에서 매일 새 문제를 풀어보세요!</p>
+        </div>
+      </c:when>
+      <c:otherwise>
+        <div class="space-y-4">
+          <c:forEach var="dq" items="${dailyHistory}">
+            <div class="rounded-2xl border bg-white p-6 shadow-sm
+              ${dq.answeredAt == null ? 'border-slate-200' :
+                dq.questionType == 'essay' ? 'border-blue-200' :
+                dq.isCorrect ? 'border-green-200' : 'border-red-200'}">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-slate-400">
+                    <fmt:formatDate value="${dq.date}" pattern="yyyy.MM.dd (E)"/>
+                  </span>
+                  <c:if test="${not empty dq.workbookTitle}">
+                    <span class="inline-flex rounded-full bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-600">${dq.workbookTitle}</span>
+                  </c:if>
+                </div>
+                <c:choose>
+                  <c:when test="${dq.answeredAt == null}">
+                    <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">미답변</span>
+                  </c:when>
+                  <c:when test="${dq.questionType == 'essay'}">
+                    <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">제출완료</span>
+                  </c:when>
+                  <c:when test="${dq.isCorrect}">
+                    <span class="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">✅ 정답</span>
+                  </c:when>
+                  <c:otherwise>
+                    <span class="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">❌ 오답</span>
+                  </c:otherwise>
+                </c:choose>
+              </div>
+
+              <p class="font-semibold text-slate-800 mb-3">${dq.questionText}</p>
+
+              <%-- 객관식 보기 --%>
+              <c:if test="${dq.questionType == 'multiple' and not empty dq.options}">
+              <div class="grid grid-cols-2 gap-1.5 mb-3">
+                <c:forEach var="opt" items="${dq.options}" varStatus="s">
+                  <div class="rounded-lg px-3 py-1.5 text-xs border
+                    ${opt == dq.answerText ? 'bg-green-50 border-green-300 font-bold text-green-700' :
+                      opt == dq.userAnswer && opt != dq.answerText ? 'bg-red-50 border-red-200 text-red-500 line-through' :
+                      'bg-slate-50 border-slate-100 text-slate-600'}">
+                    ${s.index + 1}. ${opt}
+                  </div>
+                </c:forEach>
+              </div>
+              </c:if>
+
+              <%-- 내 답변 + 정답 + 해설 --%>
+              <c:if test="${dq.answeredAt != null}">
+              <div class="mt-3 pt-3 border-t border-slate-100 grid gap-2">
+                <c:if test="${dq.questionType != 'multiple'}">
+                <div class="text-xs rounded-lg px-3 py-2 ${dq.isCorrect ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}">
+                  <span class="font-bold">내 답변: </span>${dq.userAnswer}
+                </div>
+                </c:if>
+                <div class="text-xs rounded-lg bg-green-50 border border-green-100 px-3 py-2 text-green-700">
+                  <span class="font-bold">✅ 정답: </span>${dq.answerText}
+                </div>
+                <c:if test="${not empty dq.explanation}">
+                <div class="text-xs rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-blue-700">
+                  <span class="font-bold">💡 해설: </span>${dq.explanation}
+                </div>
+                </c:if>
+              </div>
+              </c:if>
+            </div>
+          </c:forEach>
+        </div>
+      </c:otherwise>
+    </c:choose>
+  </div>
+
   <!-- [탭 1] 저장한 문제집 -->
-  <div id="tab-saved" class="tab-content active">
+  <div id="tab-saved" class="tab-content">
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <c:choose>
         <c:when test="${empty savedWorkbooks}">
@@ -231,6 +336,10 @@
     const selectedBtn = document.getElementById('btn-' + tabName);
     if(selectedBtn) selectedBtn.className = 'flex-1 min-w-[100px] rounded-lg py-2.5 text-sm font-bold bg-white text-slate-900 shadow-sm transition-all';
   }
+
+  // URL 파라미터로 탭 직접 이동 지원
+  const urlTab = new URLSearchParams(window.location.search).get('tab');
+  if (urlTab) showTab(urlTab);
 
   function toggleAccordion(id) {
     const content = document.getElementById(id);

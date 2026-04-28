@@ -127,7 +127,7 @@
 
       <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
 
-        <%-- ── 오늘의 문제 배너 (Slack 전송 후 DB에 기록된 경우에만 표시) ── --%>
+        <%-- ── 오늘의 문제 배너 (로그인 유저에게만 표시) ── --%>
         <c:if test="${not empty dailyQuestion}">
         <div class="mb-8 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-6 shadow-sm">
           <div class="flex items-center justify-between mb-4">
@@ -140,33 +140,116 @@
                 <span class="text-xs text-slate-400">· ${dailyQuestion.workbookTitle}</span>
               </c:if>
             </div>
-            <span class="inline-flex items-center rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700 ring-1 ring-violet-200">
-              <i data-lucide="send" class="h-3 w-3 mr-1"></i> Slack 발송
-            </span>
+            <c:choose>
+              <c:when test="${not empty dailyAnswer}">
+                <c:choose>
+                  <c:when test="${dailyQuestion.questionType == 'essay'}">
+                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700 ring-1 ring-blue-200">
+                      <i data-lucide="check" class="h-3 w-3 mr-1"></i> 제출 완료
+                    </span>
+                  </c:when>
+                  <c:when test="${dailyAnswer.isCorrect}">
+                    <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-700 ring-1 ring-green-200">
+                      <i data-lucide="check-circle-2" class="h-3 w-3 mr-1"></i> 정답!
+                    </span>
+                  </c:when>
+                  <c:otherwise>
+                    <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-600 ring-1 ring-red-200">
+                      <i data-lucide="x-circle" class="h-3 w-3 mr-1"></i> 오답
+                    </span>
+                  </c:otherwise>
+                </c:choose>
+              </c:when>
+              <c:otherwise>
+                <span class="inline-flex items-center rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700 ring-1 ring-violet-200">
+                  <i data-lucide="clock" class="h-3 w-3 mr-1"></i> 미답변
+                </span>
+              </c:otherwise>
+            </c:choose>
           </div>
 
           <%-- 문제 본문 --%>
           <p class="text-base font-semibold text-slate-800 leading-relaxed mb-4">${dailyQuestion.questionText}</p>
 
-          <%-- 객관식 보기 --%>
-          <c:if test="${dailyQuestion.questionType == 'multiple' and not empty dailyQuestion.options}">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
-            <c:forEach var="opt" items="${dailyQuestion.options}" varStatus="s">
-              <div class="flex items-start gap-2 rounded-xl bg-white/70 border border-violet-100 px-4 py-2.5 text-sm text-slate-700">
-                <span class="shrink-0 font-bold text-violet-500">${s.index + 1}.</span>
-                <span>${opt}</span>
-              </div>
-            </c:forEach>
-          </div>
+          <%-- ── 미답변: 답변 폼 ── --%>
+          <c:if test="${empty dailyAnswer}">
+
+            <%-- 객관식 보기 --%>
+            <c:if test="${dailyQuestion.questionType == 'multiple' and not empty dailyQuestion.options}">
+            <div class="space-y-2 mb-4" id="options-area">
+              <c:forEach var="opt" items="${dailyQuestion.options}" varStatus="s">
+                <label class="flex items-center gap-3 rounded-xl bg-white/70 border border-violet-100 px-4 py-2.5 text-sm text-slate-700 cursor-pointer hover:border-violet-400 transition-colors has-[:checked]:border-violet-500 has-[:checked]:bg-violet-50">
+                  <input type="radio" name="dailyAnswer" value="${opt}" class="accent-violet-600">
+                  <span class="font-bold text-violet-500">${s.index + 1}.</span>
+                  <span>${opt}</span>
+                </label>
+              </c:forEach>
+            </div>
+            </c:if>
+
+            <form action="${root}/daily-quiz/answer" method="post" id="daily-answer-form">
+              <input type="hidden" name="logId"        value="${dailyLogId}">
+              <input type="hidden" name="answerText"   value="${dailyQuestion.answerText}">
+              <input type="hidden" name="questionType" value="${dailyQuestion.questionType}">
+              <input type="hidden" name="userAnswer"   id="hidden-user-answer">
+
+              <%-- 단답형/서술형 입력창 --%>
+              <c:if test="${dailyQuestion.questionType != 'multiple'}">
+                <c:choose>
+                  <c:when test="${dailyQuestion.questionType == 'short'}">
+                    <input type="text" id="short-answer-input" placeholder="정답을 입력하세요"
+                           class="w-full rounded-xl border border-violet-200 px-4 py-3 text-sm focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100 mb-4 bg-white">
+                  </c:when>
+                  <c:otherwise>
+                    <textarea id="essay-answer-input" placeholder="답변을 자유롭게 작성하세요" rows="3"
+                              class="w-full rounded-xl border border-violet-200 px-4 py-3 text-sm focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100 mb-4 bg-white resize-none"></textarea>
+                  </c:otherwise>
+                </c:choose>
+              </c:if>
+
+              <button type="button" onclick="submitDailyAnswer('${dailyQuestion.questionType}')"
+                      class="flex items-center gap-1.5 rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-700 transition-colors shadow-sm">
+                <i data-lucide="send" class="h-4 w-4"></i> 제출하기
+              </button>
+            </form>
+
           </c:if>
 
-          <%-- 정답 & 해설 (버튼 클릭 시 토글) --%>
-          <div>
-            <button id="reveal-btn" onclick="revealAnswer()"
-                    class="flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors shadow-sm">
-              <i data-lucide="eye" class="h-4 w-4"></i> 정답 보기
-            </button>
-            <div id="answer-box" class="hidden mt-4 space-y-2">
+          <%-- ── 답변 완료: 결과 표시 ── --%>
+          <c:if test="${not empty dailyAnswer}">
+
+            <%-- 객관식이면 보기 표시 (내 답 하이라이트) --%>
+            <c:if test="${dailyQuestion.questionType == 'multiple' and not empty dailyQuestion.options}">
+            <div class="space-y-2 mb-4">
+              <c:forEach var="opt" items="${dailyQuestion.options}" varStatus="s">
+                <div class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm border
+                  ${opt == dailyQuestion.answerText ? 'bg-green-50 border-green-300 font-bold text-green-700' :
+                    opt == dailyAnswer.userAnswer && opt != dailyQuestion.answerText ? 'bg-red-50 border-red-300 text-red-600 line-through' :
+                    'bg-white/50 border-violet-100 text-slate-600'}">
+                  <span class="font-bold ${opt == dailyQuestion.answerText ? 'text-green-600' : 'text-violet-400'}">${s.index + 1}.</span>
+                  <span>${opt}</span>
+                  <c:if test="${opt == dailyQuestion.answerText}">
+                    <i data-lucide="check-circle-2" class="h-4 w-4 text-green-500 ml-auto"></i>
+                  </c:if>
+                  <c:if test="${opt == dailyAnswer.userAnswer and opt != dailyQuestion.answerText}">
+                    <i data-lucide="x-circle" class="h-4 w-4 text-red-400 ml-auto"></i>
+                  </c:if>
+                </div>
+              </c:forEach>
+            </div>
+            </c:if>
+
+            <%-- 단답형/서술형은 내 답변 표시 --%>
+            <c:if test="${dailyQuestion.questionType != 'multiple'}">
+            <div class="mb-4 rounded-xl border px-4 py-3 text-sm
+              ${dailyAnswer.isCorrect ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'}">
+              <span class="font-bold text-slate-500">내 답변: </span>
+              <span class="text-slate-800">${dailyAnswer.userAnswer}</span>
+            </div>
+            </c:if>
+
+            <%-- 정답 & 해설 --%>
+            <div class="space-y-2">
               <div class="flex items-start gap-2 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm">
                 <i data-lucide="check-circle-2" class="h-4 w-4 text-green-600 mt-0.5 shrink-0"></i>
                 <div>
@@ -184,10 +267,11 @@
               </div>
               </c:if>
             </div>
-          </div>
+
+          </c:if>
         </div>
         </c:if>
-        <%-- ── 오늘의 문제 배너 끝 ── --%>
+        <%-- ── 오늘의 문제 배너 끝 ──--%>>
 
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
@@ -322,9 +406,21 @@
             });
   }
 
-  function revealAnswer() {
-    document.getElementById('answer-box').classList.remove('hidden');
-    document.getElementById('reveal-btn').style.display = 'none';
+  function submitDailyAnswer(type) {
+    let answer = '';
+    if (type === 'multiple') {
+      const checked = document.querySelector('input[name="dailyAnswer"]:checked');
+      if (!checked) { alert('보기를 선택해주세요.'); return; }
+      answer = checked.value;
+    } else if (type === 'short') {
+      answer = document.getElementById('short-answer-input').value.trim();
+      if (!answer) { alert('답변을 입력해주세요.'); return; }
+    } else {
+      answer = document.getElementById('essay-answer-input').value.trim();
+      if (!answer) { alert('답변을 입력해주세요.'); return; }
+    }
+    document.getElementById('hidden-user-answer').value = answer;
+    document.getElementById('daily-answer-form').submit();
   }
 
   window.onload = function() {

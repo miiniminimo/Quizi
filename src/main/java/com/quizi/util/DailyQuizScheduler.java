@@ -1,6 +1,5 @@
 package com.quizi.util;
 
-import com.quizi.dao.DailyQuizDAO;
 import com.quizi.dao.WorkbookDAO;
 import com.quizi.dto.QuestionDTO;
 import com.quizi.service.SlackNotifier;
@@ -68,19 +67,13 @@ public class DailyQuizScheduler implements ServletContextListener {
 
     private void sendDailyQuiz() {
         try {
-            WorkbookDAO workbookDAO = new WorkbookDAO();
-            QuestionDTO q = workbookDAO.selectRandomQuestion();
-
+            // Slack 채널에 오늘의 예고 문제 전송 (유저별 개인화 문제와는 별개)
+            QuestionDTO q = new WorkbookDAO().selectRandomQuestion();
             boolean sent = SlackNotifier.sendDailyQuestion(q);
-
-            if (sent && q != null) {
-                // Slack 전송 성공 시 DB에 오늘의 문제 기록 (UI 표시용)
-                new DailyQuizDAO().logTodayQuestion(q.getId());
-            } else {
-                System.err.println("[DailyQuizScheduler] 일일 퀴즈 전송 실패 또는 건너뜀.");
+            if (!sent) {
+                System.err.println("[DailyQuizScheduler] Slack 전송 실패 또는 건너뜀.");
             }
         } catch (Exception e) {
-            // 스케줄러 스레드가 예외로 죽지 않도록 반드시 catch
             System.err.println("[DailyQuizScheduler] 작업 실행 중 오류: " + e.getMessage());
             e.printStackTrace();
         }

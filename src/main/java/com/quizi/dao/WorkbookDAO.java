@@ -290,12 +290,7 @@ public class WorkbookDAO {
                 q.setScore(rs.getInt("score"));
                 q.setAnswerText(rs.getString("answer_text"));
                 q.setExplanation(rs.getString("explanation"));
-                // workbook_title을 임시로 explanation 필드에 붙이지 않고, 별도로 꺼낼 수 있도록 옵션 활용
-                // -> SlackNotifier에서 workbookTitle 파라미터로 전달하기 위해 바로 꺼냄
-                String workbookTitle = rs.getString("workbook_title");
-                // workbookTitle은 호출자가 rs에서 직접 못 가져가므로 간단히 questionText 맨 앞에 태그로 저장
-                // 실제로는 별도 DTO가 낫지만 기존 DTO 변경 최소화를 위해 아래 방식 사용
-                q.setQuestionText(workbookTitle + "\u0000" + q.getQuestionText()); // 구분자 \0 사용
+                q.setWorkbookTitle(rs.getString("workbook_title"));
 
                 if ("multiple".equals(q.getQuestionType())) {
                     List<String> options = new ArrayList<>();

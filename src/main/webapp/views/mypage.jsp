@@ -141,12 +141,23 @@
               <c:if test="${dq.questionType == 'multiple' and not empty dq.options}">
               <div class="grid grid-cols-2 gap-1.5 mb-3">
                 <c:forEach var="opt" items="${dq.options}" varStatus="s">
-                  <div class="rounded-lg px-3 py-1.5 text-xs border
-                    ${opt == dq.answerText ? 'bg-green-50 border-green-300 font-bold text-green-700' :
-                      opt == dq.userAnswer && opt != dq.answerText ? 'bg-red-50 border-red-200 text-red-500 line-through' :
-                      'bg-slate-50 border-slate-100 text-slate-600'}">
-                    ${s.index + 1}. ${opt}
-                  </div>
+                  <c:choose>
+                    <%-- 답변 완료: 정답/오답 하이라이트 --%>
+                    <c:when test="${dq.answeredAt != null}">
+                      <div class="rounded-lg px-3 py-1.5 text-xs border
+                        ${opt == dq.answerText ? 'bg-green-50 border-green-300 font-bold text-green-700' :
+                          opt == dq.userAnswer ? 'bg-red-50 border-red-200 text-red-500 line-through' :
+                          'bg-slate-50 border-slate-100 text-slate-600'}">
+                        ${s.index + 1}. ${opt}
+                      </div>
+                    </c:when>
+                    <%-- 미답변: 중립 스타일만 --%>
+                    <c:otherwise>
+                      <div class="rounded-lg px-3 py-1.5 text-xs border bg-slate-50 border-slate-100 text-slate-600">
+                        ${s.index + 1}. ${opt}
+                      </div>
+                    </c:otherwise>
+                  </c:choose>
                 </c:forEach>
               </div>
               </c:if>

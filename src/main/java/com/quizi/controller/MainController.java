@@ -8,8 +8,10 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import com.quizi.dao.DailyQuizDAO;
 import com.quizi.dao.WorkbookDAO;
 import com.quizi.dao.FolderDAO;
+import com.quizi.dto.QuestionDTO;
 import com.quizi.dto.WorkbookDTO;
 import com.quizi.dto.UserDTO;
 import com.quizi.dto.FolderDTO;
@@ -48,6 +50,10 @@ public class MainController extends HttpServlet {
         request.setAttribute("workbooks", workbookList);
         request.setAttribute("searchKeyword", keyword);
         request.setAttribute("searchDifficulty", difficulty);
+
+        // 오늘의 문제 (Slack으로 전송된 문제) — 없으면 null (배너 미표시)
+        QuestionDTO dailyQuestion = new DailyQuizDAO().getTodayQuestion();
+        request.setAttribute("dailyQuestion", dailyQuestion);
 
         request.getRequestDispatcher("/views/main.jsp").forward(request, response);
     }

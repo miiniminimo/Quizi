@@ -126,6 +126,69 @@
     <div class="flex-1 overflow-y-auto p-8 relative">
 
       <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
+
+        <%-- ── 오늘의 문제 배너 (Slack 전송 후 DB에 기록된 경우에만 표시) ── --%>
+        <c:if test="${not empty dailyQuestion}">
+        <div class="mb-8 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-6 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-600 text-white text-xs font-bold shadow">
+                <i data-lucide="calendar-days" class="h-4 w-4"></i>
+              </span>
+              <span class="text-sm font-bold text-violet-700">오늘의 문제</span>
+              <c:if test="${not empty dailyQuestion.workbookTitle}">
+                <span class="text-xs text-slate-400">· ${dailyQuestion.workbookTitle}</span>
+              </c:if>
+            </div>
+            <span class="inline-flex items-center rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700 ring-1 ring-violet-200">
+              <i data-lucide="send" class="h-3 w-3 mr-1"></i> Slack 발송
+            </span>
+          </div>
+
+          <%-- 문제 본문 --%>
+          <p class="text-base font-semibold text-slate-800 leading-relaxed mb-4">${dailyQuestion.questionText}</p>
+
+          <%-- 객관식 보기 --%>
+          <c:if test="${dailyQuestion.questionType == 'multiple' and not empty dailyQuestion.options}">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+            <c:forEach var="opt" items="${dailyQuestion.options}" varStatus="s">
+              <div class="flex items-start gap-2 rounded-xl bg-white/70 border border-violet-100 px-4 py-2.5 text-sm text-slate-700">
+                <span class="shrink-0 font-bold text-violet-500">${s.index + 1}.</span>
+                <span>${opt}</span>
+              </div>
+            </c:forEach>
+          </div>
+          </c:if>
+
+          <%-- 정답 & 해설 (버튼 클릭 시 토글) --%>
+          <div>
+            <button id="reveal-btn" onclick="revealAnswer()"
+                    class="flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors shadow-sm">
+              <i data-lucide="eye" class="h-4 w-4"></i> 정답 보기
+            </button>
+            <div id="answer-box" class="hidden mt-4 space-y-2">
+              <div class="flex items-start gap-2 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm">
+                <i data-lucide="check-circle-2" class="h-4 w-4 text-green-600 mt-0.5 shrink-0"></i>
+                <div>
+                  <span class="font-bold text-green-700">정답: </span>
+                  <span class="text-slate-800">${dailyQuestion.answerText}</span>
+                </div>
+              </div>
+              <c:if test="${not empty dailyQuestion.explanation}">
+              <div class="flex items-start gap-2 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-sm">
+                <i data-lucide="lightbulb" class="h-4 w-4 text-blue-500 mt-0.5 shrink-0"></i>
+                <div>
+                  <span class="font-bold text-blue-600">해설: </span>
+                  <span class="text-slate-700">${dailyQuestion.explanation}</span>
+                </div>
+              </div>
+              </c:if>
+            </div>
+          </div>
+        </div>
+        </c:if>
+        <%-- ── 오늘의 문제 배너 끝 ── --%>
+
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
             <i data-lucide="sparkles" class="h-5 w-5 text-yellow-500 fill-current"></i> 문제집 보기
@@ -257,6 +320,11 @@
                 alert("삭제 실패");
               }
             });
+  }
+
+  function revealAnswer() {
+    document.getElementById('answer-box').classList.remove('hidden');
+    document.getElementById('reveal-btn').style.display = 'none';
   }
 
   window.onload = function() {

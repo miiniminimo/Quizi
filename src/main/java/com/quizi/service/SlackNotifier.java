@@ -22,13 +22,10 @@ import java.util.List;
  */
 public class SlackNotifier {
 
-    /** WorkbookDAO가 title과 questionText를 구분하는 데 사용하는 구분자 */
-    private static final String TITLE_SEP = "\u0000";
-
     /**
      * 랜덤으로 선택된 QuestionDTO를 Slack Block Kit 메시지로 포맷하여 전송합니다.
      *
-     * @param q WorkbookDAO.selectRandomQuestion()의 반환값
+     * @param q WorkbookDAO.selectRandomQuestion()의 반환값 (workbookTitle 필드 포함)
      * @return true = 전송 성공 (HTTP 2xx), false = 실패 또는 webhook URL 미설정
      */
     public static boolean sendDailyQuestion(QuestionDTO q) {
@@ -43,15 +40,8 @@ public class SlackNotifier {
             return false;
         }
 
-        // questionText에서 workbook title 파싱
-        String rawText = q.getQuestionText();
-        String workbookTitle = "";
-        String questionText = rawText;
-        if (rawText != null && rawText.contains(TITLE_SEP)) {
-            int idx = rawText.indexOf(TITLE_SEP);
-            workbookTitle = rawText.substring(0, idx);
-            questionText = rawText.substring(idx + 1);
-        }
+        String questionText  = q.getQuestionText()  != null ? q.getQuestionText()  : "";
+        String workbookTitle = q.getWorkbookTitle() != null ? q.getWorkbookTitle() : "";
 
         String payload = buildPayload(questionText, workbookTitle, q);
 

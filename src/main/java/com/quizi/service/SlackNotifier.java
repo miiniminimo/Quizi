@@ -71,7 +71,7 @@ public class SlackNotifier {
         if (!workbookTitle.isBlank()) {
             sb.append("{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"*문제집:* ")
               .append(escapeJson(workbookTitle))
-              .append("}]},");
+              .append("\"}]},");
         }
 
         sb.append("{\"type\":\"divider\"},");
@@ -98,7 +98,7 @@ public class SlackNotifier {
 
         sb.append("{\"type\":\"divider\"},");
 
-        // 정답 & 해설 (접혀있는 느낌을 주기 위해 context 블록 사용)
+        // 정답 & 해설
         StringBuilder answerSb = new StringBuilder("*✅ 정답:* ").append(escapeJson(q.getAnswerText()));
         if (q.getExplanation() != null && !q.getExplanation().isBlank()) {
             answerSb.append("\\n*💡 해설:* ").append(escapeJson(q.getExplanation()));

@@ -37,13 +37,14 @@ public class DailyQuizScheduler implements ServletContextListener {
             return t;
         });
 
+        // 매일 설정된 시각(기본: 09:00 KST)에 전송
         long initialDelay = computeInitialDelay();
-        long period = TimeUnit.DAYS.toSeconds(1);
+        scheduler.scheduleAtFixedRate(this::sendDailyQuiz, initialDelay, 86400, TimeUnit.SECONDS);
 
-        scheduler.scheduleAtFixedRate(this::sendDailyQuiz, initialDelay, period, TimeUnit.SECONDS);
-
-        ZonedDateTime nextRun = ZonedDateTime.now(KST).plusSeconds(initialDelay);
-        System.out.printf("[DailyQuizScheduler] 시작됨. 다음 전송: %s%n", nextRun);
+        int targetHour   = parseIntConfig("slack.quiz.hour",   9);
+        int targetMinute = parseIntConfig("slack.quiz.minute", 0);
+        System.out.printf("[DailyQuizScheduler] 매일 %02d:%02d KST에 퀴즈 전송 예약됨 (첫 전송까지 %d초 후)%n",
+                targetHour, targetMinute, initialDelay);
     }
 
     @Override

@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Quizi API 명세서</title>
+<style>
+  :root {
+    --bg: #1a1a2e; --surface: #16213e; --card: #0f3460;
+    --accent: #e94560; --green: #2ecc71; --blue: #3498db;
+    --orange: #f39c12; --red: #e74c3c; --purple: #9b59b6;
+    --text: #eaeaea; --muted: #8892a4; --border: #2a2f4e;
+    --get: #61affe; --post: #49cc90; --delete: #f93e3e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; display: flex; min-height: 100vh; }
+
+  /* ── 사이드바 ── */
+  nav {
+    width: 260px; min-width: 260px; background: var(--surface);
+    border-right: 1px solid var(--border); position: sticky; top: 0;
+    height: 100vh; overflow-y: auto; padding: 24px 0;
+  }
+  .nav-logo { padding: 0 20px 24px; border-bottom: 1px solid var(--border); }
+  .nav-logo h1 { font-size: 22px; color: var(--accent); }
+  .nav-logo p  { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .nav-section { padding: 16px 20px 4px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  nav a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 20px; font-size: 13px; color: var(--muted);
+    text-decoration: none; transition: all .15s; border-left: 3px solid transparent;
+  }
+  nav a:hover, nav a.active { color: var(--text); background: rgba(233,69,96,.08); border-left-color: var(--accent); }
+  .badge-nav { font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 3px; }
+  .get-nav    { background: rgba(97,175,254,.2); color: var(--get); }
+  .post-nav   { background: rgba(73,204,144,.2); color: var(--post); }
+  .delete-nav { background: rgba(249,62,62,.2);  color: var(--delete); }
+
+  /* ── 메인 ── */
+  main { flex: 1; padding: 40px 48px; max-width: 1000px; }
+  .page-header { margin-bottom: 40px; }
+  .page-header h2 { font-size: 32px; font-weight: 700; }
+  .page-header p  { color: var(--muted); margin-top: 8px; font-size: 14px; }
+  .base-url { display: inline-block; background: var(--surface); border: 1px solid var(--border);
+    padding: 8px 16px; border-radius: 6px; font-family: monospace; font-size: 13px; margin-top: 12px; }
+  .base-url span { color: var(--accent); }
+
+  /* ── 섹션 ── */
+  .section { margin-bottom: 48px; }
+  .section-title {
+    font-size: 18px; font-weight: 700; padding-bottom: 12px;
+    border-bottom: 2px solid var(--border); margin-bottom: 20px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-icon { font-size: 20px; }
+
+  /* ── 엔드포인트 카드 ── */
+  .endpoint {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; margin-bottom: 12px; overflow: hidden;
+  }
+  .ep-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px; cursor: pointer; user-select: none;
+    transition: background .15s;
+  }
+  .ep-header:hover { background: rgba(255,255,255,.03); }
+  .method {
+    font-size: 11px; font-weight: 800; padding: 4px 10px;
+    border-radius: 4px; min-width: 60px; text-align: center; letter-spacing: .5px;
+  }
+  .GET    { background: rgba(97,175,254,.15); color: var(--get);    border: 1px solid rgba(97,175,254,.3); }
+  .POST   { background: rgba(73,204,144,.15); color: var(--post);   border: 1px solid rgba(73,204,144,.3); }
+  .DELETE { background: rgba(249,62,62,.15);  color: var(--delete); border: 1px solid rgba(249,62,62,.3);  }
+  .ep-path { font-family: monospace; font-size: 14px; font-weight: 600; }
+  .ep-desc { color: var(--muted); font-size: 13px; margin-left: auto; }
+  .auth-badge { font-size: 10px; background: rgba(155,89,182,.2); color: var(--purple);
+    border: 1px solid rgba(155,89,182,.3); padding: 2px 7px; border-radius: 3px; }
+  .admin-badge { font-size: 10px; background: rgba(233,69,96,.2); color: var(--accent);
+    border: 1px solid rgba(233,69,96,.3); padding: 2px 7px; border-radius: 3px; }
+  .chevron { margin-left: 8px; color: var(--muted); font-size: 12px; transition: transform .2s; }
+  .ep-header.open .chevron { transform: rotate(90deg); }
+
+  /* ── 상세 패널 ── */
+  .ep-body { display: none; padding: 0 18px 18px; border-top: 1px solid var(--border); }
+  .ep-body.open { display: block; }
+  .param-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+  .param-table th { text-align: left; padding: 8px 12px; background: rgba(255,255,255,.04);
+    color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .param-table td { padding: 8px 12px; border-top: 1px solid var(--border); vertical-align: top; }
+  .param-name { font-family: monospace; color: #ffd580; }
+  .param-type { font-family: monospace; font-size: 11px; color: var(--muted); }
+  .required { color: var(--red); font-size: 10px; margin-left: 4px; }
+  .optional { color: var(--muted); font-size: 10px; margin-left: 4px; }
+
+  .label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--muted); margin-top: 16px; margin-bottom: 6px; }
+  pre {
+    background: #0d1117; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px 16px; font-family: 'Consolas', monospace; font-size: 12px;
+    line-height: 1.6; overflow-x: auto; white-space: pre-wrap;
+  }
+  .key   { color: #79c0ff; }
+  .str   { color: #a5d6ff; }
+  .num   { color: #f8c555; }
+  .bool  { color: #ff7b72; }
+  .null  { color: var(--muted); }
+  .resp-200 { color: var(--post); font-weight: 700; }
+  .resp-400 { color: var(--orange); font-weight: 700; }
+  .resp-401 { color: var(--red); font-weight: 700; }
+  .resp-500 { color: var(--delete); font-weight: 700; }
+  .resp-row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; font-size: 13px; }
+
+  /* ── 스크롤바 ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ 사이드바 ═══════════════ -->
+<nav>
+  <div class="nav-logo">
+    <h1>📚 Quizi</h1>
+    <p>API 명세서 v1.0</p>
+  </div>
+
+  <div class="nav-section">인증</div>
+  <a href="#auth"><span class="badge-nav get-nav">GET</span> 랜딩 / 로그인</a>
+  <a href="#auth"><span class="badge-nav post-nav">POST</span> 로그인 / 회원가입</a>
+
+  <div class="nav-section">문제집</div>
+  <a href="#workbook"><span class="badge-nav get-nav">GET</span> 목록 / 상세</a>
+  <a href="#workbook"><span class="badge-nav post-nav">POST</span> 생성 / 수정</a>
+  <a href="#workbook"><span class="badge-nav delete-nav">POST</span> 삭제</a>
+
+  <div class="nav-section">퀴즈 풀기</div>
+  <a href="#solve"><span class="badge-nav get-nav">GET</span> 풀기 페이지</a>
+  <a href="#solve"><span class="badge-nav post-nav">POST</span> 채점</a>
+
+  <div class="nav-section">오늘의 문제</div>
+  <a href="#daily"><span class="badge-nav post-nav">POST</span> 답변 제출</a>
+  <a href="#daily"><span class="badge-nav post-nav">POST</span> 주제 설정</a>
+
+  <div class="nav-section">북마크 / 폴더</div>
+  <a href="#bookmark"><span class="badge-nav post-nav">POST</span> 북마크 토글</a>
+  <a href="#folder"><span class="badge-nav post-nav">POST</span> 폴더 관리</a>
+
+  <div class="nav-section">오답노트 / AI</div>
+  <a href="#wrongnote"><span class="badge-nav post-nav">POST</span> 오답 저장</a>
+  <a href="#ai"><span class="badge-nav post-nav">POST</span> AI 문제 생성</a>
+
+  <div class="nav-section">마이페이지 / 히스토리</div>
+  <a href="#mypage"><span class="badge-nav get-nav">GET</span> 마이페이지</a>
+  <a href="#history"><span class="badge-nav get-nav">GET</span> 히스토리 상세</a>
+
+  <div class="nav-section">관리자</div>
+  <a href="#admin"><span class="badge-nav get-nav">GET</span> 관리 페이지</a>
+  <a href="#admin"><span class="badge-nav post-nav">POST</span> 유저 / 문제집 삭제</a>
+</nav>
+
+<!-- ═══════════════ 메인 ═══════════════ -->
+<main>
+  <div class="page-header">
+    <h2>Quizi API 명세서</h2>
+    <p>Jakarta EE 10 · Servlet MVC · Tomcat 10.1 · MySQL 8.0</p>
+    <div class="base-url">Base URL: <span>http://localhost:8080/Quizi</span></div>
+  </div>
+
+  <!-- ═══ 인증 ═══ -->
+  <div class="section" id="auth">
+    <div class="section-title"><span class="section-icon">🔐</span> 인증 (Auth)</div>
+
+    <!-- GET /welcome -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="ep-path">/welcome</span>
+        <span class="ep-desc">랜딩 페이지 (비로그인)</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">설명</div>
+        <p style="font-size:13px;color:var(--muted)">로그인 상태이면 /main으로 자동 리다이렉트합니다.</p>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>landing.jsp 렌더링</span></div>
+        <div class="resp-row"><span class="resp-200">302</span><span>로그인 상태 → /main 리다이렉트</span></div>
+      </div>
+    </div>
+
+    <!-- GET /login -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="ep-path">/login</span>
+        <span class="ep-desc">로그인 페이지</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">쿼리 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">error</td><td class="param-type">string</td><td class="optional">선택</td><td><code>invalid</code></td><td>오류 메시지 표시</td></tr>
+            <tr><td class="param-name">msg</td><td class="param-type">string</td><td class="optional">선택</td><td><code>signup_success</code></td><td>성공 메시지 표시</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>login.jsp 렌더링</span></div>
+      </div>
+    </div>
+
+    <!-- POST /login -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/login</span>
+        <span class="ep-desc">로그인 처리</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">Content-Type</div>
+        <p style="font-size:13px;color:var(--muted)">application/x-www-form-urlencoded</p>
+        <div class="label">요청 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">email</td><td class="param-type">string</td><td class="required">필수</td><td><code>hong@quizi.com</code></td><td>사용자 이메일</td></tr>
+            <tr><td class="param-name">password</td><td class="param-type">string</td><td class="required">필수</td><td><code>Qwerty123!</code></td><td>비밀번호</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">302</span><span>로그인 성공 → /main (ADMIN이면 /admin)</span></div>
+        <div class="resp-row"><span class="resp-400">302</span><span>실패 → /views/login.jsp?error=invalid</span></div>
+      </div>
+    </div>
+
+    <!-- POST /signup -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/signup</span>
+        <span class="ep-desc">회원가입</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">요청 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">name</td><td class="param-type">string</td><td class="required">필수</td><td><code>홍길동</code></td><td>닉네임</td></tr>
+            <tr><td class="param-name">email</td><td class="param-type">string</td><td class="required">필수</td><td><code>hong@quizi.com</code></td><td>이메일</td></tr>
+            <tr><td class="param-name">password</td><td class="param-type">string</td><td class="required">필수</td><td><code>Qwerty123!</code></td><td>비밀번호 (BCrypt 해시 저장)</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">302</span><span>성공 → /login?msg=signup_success</span></div>
+        <div class="resp-row"><span class="resp-400">302</span><span>실패 → /signup?error=fail</span></div>
+      </div>
+    </div>
+
+    <!-- GET /logout -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="ep-path">/logout</span>
+        <span class="ep-desc">로그아웃 (세션 무효화)</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">302</span><span>세션 invalidate 후 /login 리다이렉트</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 문제집 ═══ -->
+  <div class="section" id="workbook">
+    <div class="section-title"><span class="section-icon">📖</span> 문제집 (Workbook)</div>
+
+    <!-- GET /main -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="ep-path">/main</span>
+        <span class="ep-desc">문제집 목록 (검색 / 필터)</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">쿼리 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">keyword</td><td class="param-type">string</td><td class="optional">선택</td><td><code>자바</code></td><td>제목 검색어</td></tr>
+            <tr><td class="param-name">difficulty</td><td class="param-type">string</td><td class="optional">선택</td><td><code>중</code></td><td>난이도 필터 (상/중/하)</td></tr>
+            <tr><td class="param-name">folderId</td><td class="param-type">long</td><td class="optional">선택</td><td><code>3</code></td><td>폴더 ID (미입력 시 전체)</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>main.jsp 렌더링 (문제집 목록 + 오늘의 문제)</span></div>
+      </div>
+    </div>
+
+    <!-- GET /detail -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="ep-path">/detail</span>
+        <span class="ep-desc">문제집 상세 조회</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">쿼리 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">id</td><td class="param-type">long</td><td class="required">필수</td><td><code>7</code></td><td>문제집 ID</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>detail.jsp 렌더링</span></div>
+        <div class="resp-row"><span class="resp-400">302</span><span>id 없음 → /main</span></div>
+      </div>
+    </div>
+
+    <!-- POST /create -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/create</span>
+        <span class="ep-desc">문제집 생성</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">Content-Type</div>
+        <p style="font-size:13px;color:var(--muted)">application/json</p>
+        <div class="label">요청 Body 예시</div>
+        <pre>{
+  <span class="key">"title"</span>: <span class="str">"자바 기초 문제집"</span>,
+  <span class="key">"description"</span>: <span class="str">"OOP, 컬렉션, 예외처리 핵심 정리"</span>,
+  <span class="key">"difficulty"</span>: <span class="str">"중"</span>,
+  <span class="key">"isPublic"</span>: <span class="bool">true</span>,
+  <span class="key">"questions"</span>: [
+    {
+      <span class="key">"questionText"</span>: <span class="str">"Java에서 인터페이스를 구현하는 키워드는?"</span>,
+      <span class="key">"questionType"</span>: <span class="str">"multiple"</span>,
+      <span class="key">"answerText"</span>: <span class="str">"implements"</span>,
+      <span class="key">"explanation"</span>: <span class="str">"extends는 클래스 상속, implements는 인터페이스 구현에 사용합니다."</span>,
+      <span class="key">"options"</span>: [<span class="str">"extends"</span>, <span class="str">"implements"</span>, <span class="str">"inherits"</span>, <span class="str">"interface"</span>]
+    },
+    {
+      <span class="key">"questionText"</span>: <span class="str">"ArrayList와 LinkedList의 차이를 설명하시오."</span>,
+      <span class="key">"questionType"</span>: <span class="str">"essay"</span>,
+      <span class="key">"answerText"</span>: <span class="str">"ArrayList는 인덱스 접근이 빠르고, LinkedList는 삽입/삭제가 빠르다."</span>,
+      <span class="key">"explanation"</span>: <span class="str">"내부 구조 차이(배열 vs 이중연결리스트)로 인해 성능이 다릅니다."</span>,
+      <span class="key">"options"</span>: <span class="null">null</span>
+    }
+  ]
+}</pre>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><pre>{<span class="key">"status"</span>: <span class="str">"success"</span>}</pre></div>
+        <div class="resp-row"><span class="resp-400">400</span><pre>{<span class="key">"status"</span>: <span class="str">"error"</span>, <span class="key">"message"</span>: <span class="str">"정답이 입력되지 않은 문제가 있습니다."</span>}</pre></div>
+        <div class="resp-row"><span class="resp-401">401</span><span>미로그인</span></div>
+      </div>
+    </div>
+
+    <!-- POST /edit -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/edit</span>
+        <span class="ep-desc">문제집 수정</span>
+        <span class="auth-badge">🔒 로그인 · 소유자</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">Content-Type</div>
+        <p style="font-size:13px;color:var(--muted)">application/json (POST /create와 동일 구조, id 필드 추가)</p>
+        <div class="label">요청 Body 예시</div>
+        <pre>{
+  <span class="key">"id"</span>: <span class="num">7</span>,
+  <span class="key">"title"</span>: <span class="str">"자바 기초 문제집 (개정판)"</span>,
+  <span class="key">"difficulty"</span>: <span class="str">"상"</span>,
+  <span class="key">"isPublic"</span>: <span class="bool">true</span>,
+  <span class="key">"questions"</span>: [ <span class="null">/* 위와 동일 */</span> ]
+}</pre>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><pre>{<span class="key">"status"</span>: <span class="str">"success"</span>}</pre></div>
+        <div class="resp-row"><span class="resp-401">401</span><span>미로그인</span></div>
+      </div>
+    </div>
+
+    <!-- POST /delete -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/delete</span>
+        <span class="ep-desc">문제집 삭제</span>
+        <span class="auth-badge">🔒 소유자</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">요청 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">id</td><td class="param-type">long</td><td class="required">필수</td><td><code>7</code></td><td>삭제할 문제집 ID</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">302</span><span>성공 → /main</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 퀴즈 풀기 ═══ -->
+  <div class="section" id="solve">
+    <div class="section-title"><span class="section-icon">✏️</span> 퀴즈 풀기 (Solve)</div>
+
+    <!-- GET /solve -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="ep-path">/solve</span>
+        <span class="ep-desc">퀴즈 풀기 페이지</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">쿼리 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">id</td><td class="param-type">long</td><td class="required">필수</td><td><code>7</code></td><td>문제집 ID</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>solve.jsp 렌더링</span></div>
+      </div>
+    </div>
+
+    <!-- POST /grade -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/grade</span>
+        <span class="ep-desc">퀴즈 채점 및 히스토리 저장</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">요청 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">workbookId</td><td class="param-type">long</td><td class="required">필수</td><td><code>7</code></td><td>문제집 ID</td></tr>
+            <tr><td class="param-name">q-{questionId}</td><td class="param-type">string</td><td class="required">필수</td><td><code>q-42=implements</code></td><td>각 문제의 사용자 답변</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>result.jsp 렌더링 (점수, 오답 목록 포함)</span></div>
+      </div>
+    </div>
+
+    <!-- GET /history/detail -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="ep-path">/history/detail</span>
+        <span class="ep-desc">과거 퀴즈 풀이 상세 조회</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">쿼리 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">id</td><td class="param-type">long</td><td class="required">필수</td><td><code>15</code></td><td>히스토리 ID</td></tr>
+            <tr><td class="param-name">title</td><td class="param-type">string</td><td class="optional">선택</td><td><code>자바 기초 문제집</code></td><td>문제집 제목 (표시용)</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>history_detail.jsp 렌더링</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 오늘의 문제 ═══ -->
+  <div class="section" id="daily">
+    <div class="section-title"><span class="section-icon">📅</span> 오늘의 문제 (Daily Quiz)</div>
+
+    <!-- POST /daily-quiz/answer -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/daily-quiz/answer</span>
+        <span class="ep-desc">오늘의 문제 답변 제출 + 자동 채점</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">요청 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">logId</td><td class="param-type">long</td><td class="required">필수</td><td><code>23</code></td><td>daily_quiz_log PK</td></tr>
+            <tr><td class="param-name">userAnswer</td><td class="param-type">string</td><td class="required">필수</td><td><code>implements</code></td><td>사용자 답변</td></tr>
+            <tr><td class="param-name">answerText</td><td class="param-type">string</td><td class="required">필수</td><td><code>implements</code></td><td>정답 (채점용)</td></tr>
+            <tr><td class="param-name">questionType</td><td class="param-type">string</td><td class="required">필수</td><td><code>multiple</code></td><td>multiple / short / essay</td></tr>
+          </tbody>
+        </table>
+        <div class="label">채점 규칙</div>
+        <p style="font-size:13px;color:var(--muted)">multiple / short → equalsIgnoreCase 비교 | essay → 항상 미채점(false)</p>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">302</span><span>성공 → /main</span></div>
+        <div class="resp-row"><span class="resp-401">302</span><span>미로그인 → /login</span></div>
+      </div>
+    </div>
+
+    <!-- POST /daily-quiz/topic -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/daily-quiz/topic</span>
+        <span class="ep-desc">오늘의 문제 주제 설정</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">요청 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">topic</td><td class="param-type">string</td><td class="optional">선택</td><td><code>자바</code></td><td>주제 키워드 (공백이면 전체)</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">302</span><span>Referer 또는 /mypage 리다이렉트</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 북마크 ═══ -->
+  <div class="section" id="bookmark">
+    <div class="section-title"><span class="section-icon">🔖</span> 북마크 (Bookmark)</div>
+
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/bookmark</span>
+        <span class="ep-desc">북마크 토글 (저장 ↔ 해제)</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">Content-Type</div>
+        <p style="font-size:13px;color:var(--muted)">application/json</p>
+        <div class="label">요청 Body 예시</div>
+        <pre>{<span class="key">"workbookId"</span>: <span class="num">7</span>}</pre>
+        <div class="label">응답 예시</div>
+        <div class="resp-row"><span class="resp-200">200</span><pre>{<span class="key">"saved"</span>: <span class="bool">true</span>}   <span class="null">// true=저장됨, false=해제됨</span></pre></div>
+        <div class="resp-row"><span class="resp-401">401</span><span>미로그인</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 폴더 ═══ -->
+  <div class="section" id="folder">
+    <div class="section-title"><span class="section-icon">📁</span> 폴더 (Folder)</div>
+
+    <!-- POST /folder/create -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/folder/create</span>
+        <span class="ep-desc">폴더 생성</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">요청 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">name</td><td class="param-type">string</td><td class="required">필수</td><td><code>백엔드 공부</code></td><td>폴더명</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>OK</span></div>
+        <div class="resp-row"><span class="resp-401">401</span><span>미로그인</span></div>
+      </div>
+    </div>
+
+    <!-- POST /folder/move -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/folder/move</span>
+        <span class="ep-desc">문제집을 폴더로 이동</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">요청 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">workbookId</td><td class="param-type">long</td><td class="required">필수</td><td><code>7</code></td><td>이동할 문제집 ID</td></tr>
+            <tr><td class="param-name">folderId</td><td class="param-type">string</td><td class="required">필수</td><td><code>3</code> or <code>""</code></td><td>대상 폴더 ID (빈 문자열 = 루트)</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>OK</span></div>
+      </div>
+    </div>
+
+    <!-- POST /folder/delete -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/folder/delete</span>
+        <span class="ep-desc">폴더 삭제</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">요청 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">id</td><td class="param-type">long</td><td class="required">필수</td><td><code>3</code></td><td>삭제할 폴더 ID</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>OK</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 오답노트 ═══ -->
+  <div class="section" id="wrongnote">
+    <div class="section-title"><span class="section-icon">📝</span> 오답노트 (Wrong Note)</div>
+
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/wrongnote/save</span>
+        <span class="ep-desc">오답 목록 일괄 저장</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">Content-Type</div>
+        <p style="font-size:13px;color:var(--muted)">application/json</p>
+        <div class="label">요청 Body 예시</div>
+        <pre>[
+  {
+    <span class="key">"questionId"</span>: <span class="num">42</span>,
+    <span class="key">"questionText"</span>: <span class="str">"Java에서 인터페이스를 구현하는 키워드는?"</span>,
+    <span class="key">"userAnswer"</span>: <span class="str">"extends"</span>,
+    <span class="key">"correctAnswer"</span>: <span class="str">"implements"</span>
+  },
+  {
+    <span class="key">"questionId"</span>: <span class="num">43</span>,
+    <span class="key">"questionText"</span>: <span class="str">"GC의 종류가 아닌 것은?"</span>,
+    <span class="key">"userAnswer"</span>: <span class="str">"Serial GC"</span>,
+    <span class="key">"correctAnswer"</span>: <span class="str">"Infinite GC"</span>
+  }
+]</pre>
+        <div class="label">응답 예시</div>
+        <div class="resp-row"><span class="resp-200">200</span><pre>{<span class="key">"count"</span>: <span class="num">2</span>}</pre></div>
+        <div class="resp-row"><span class="resp-401">401</span><span>미로그인</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ AI 문제 생성 ═══ -->
+  <div class="section" id="ai">
+    <div class="section-title"><span class="section-icon">🤖</span> AI 문제 생성 (AI Generate)</div>
+
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/ai-generate</span>
+        <span class="ep-desc">OpenAI API로 문제 자동 생성 후 저장</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">요청 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>필수</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">topic</td><td class="param-type">string</td><td class="required">필수</td><td><code>자바 컬렉션 프레임워크</code></td><td>생성할 주제</td></tr>
+            <tr><td class="param-name">count</td><td class="param-type">int</td><td class="required">필수</td><td><code>5</code></td><td>생성할 문제 수</td></tr>
+            <tr><td class="param-name">difficulty</td><td class="param-type">string</td><td class="required">필수</td><td><code>중</code></td><td>난이도 (상/중/하)</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">302</span><span>성공 → /main?msg=ai_created</span></div>
+        <div class="resp-row"><span class="resp-400">302</span><span>주제 없음 → /views/ai_setup.jsp?error=empty</span></div>
+        <div class="resp-row"><span class="resp-400">302</span><span>AI 오류 → /views/ai_setup.jsp?error=ai_fail</span></div>
+        <div class="resp-row"><span class="resp-500">302</span><span>DB 오류 → /views/ai_setup.jsp?error=db_fail</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 마이페이지 ═══ -->
+  <div class="section" id="mypage">
+    <div class="section-title"><span class="section-icon">👤</span> 마이페이지 (My Page)</div>
+
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="ep-path">/mypage</span>
+        <span class="ep-desc">마이페이지 (내 문제집 / 오답 / 오늘의 문제 히스토리)</span>
+        <span class="auth-badge">🔒 로그인</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">세션 필수 속성</div>
+        <p style="font-size:13px;color:var(--muted)">session["user"] — UserDTO</p>
+        <div class="label">주입되는 Request Attributes</div>
+        <table class="param-table">
+          <thead><tr><th>속성명</th><th>타입</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">wrongNotes</td><td class="param-type">List&lt;Map&gt;</td><td>오답노트 목록</td></tr>
+            <tr><td class="param-name">myWorkbooks</td><td class="param-type">List&lt;WorkbookDTO&gt;</td><td>내가 만든 문제집</td></tr>
+            <tr><td class="param-name">savedWorkbooks</td><td class="param-type">List&lt;WorkbookDTO&gt;</td><td>북마크 저장 문제집</td></tr>
+            <tr><td class="param-name">history</td><td class="param-type">List&lt;Map&gt;</td><td>퀴즈 풀이 기록</td></tr>
+            <tr><td class="param-name">dailyHistory</td><td class="param-type">List&lt;Map&gt;</td><td>오늘의 문제 풀이 기록</td></tr>
+            <tr><td class="param-name">dailyTopic</td><td class="param-type">String</td><td>설정된 주제 키워드</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>mypage.jsp 렌더링</span></div>
+        <div class="resp-row"><span class="resp-401">302</span><span>미로그인 → /views/login.jsp</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 관리자 ═══ -->
+  <div class="section" id="admin">
+    <div class="section-title"><span class="section-icon">⚙️</span> 관리자 (Admin)</div>
+
+    <!-- GET /admin -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="ep-path">/admin</span>
+        <span class="ep-desc">관리자 대시보드</span>
+        <span class="admin-badge">🛡 ADMIN</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">주입되는 Request Attributes</div>
+        <table class="param-table">
+          <thead><tr><th>속성명</th><th>타입</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">userCount</td><td class="param-type">int</td><td>전체 유저 수</td></tr>
+            <tr><td class="param-name">workbookCount</td><td class="param-type">int</td><td>전체 문제집 수</td></tr>
+            <tr><td class="param-name">allUsers</td><td class="param-type">List&lt;UserDTO&gt;</td><td>전체 유저 목록</td></tr>
+            <tr><td class="param-name">allWorkbooks</td><td class="param-type">List&lt;WorkbookDTO&gt;</td><td>전체 문제집 목록</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>admin.jsp 렌더링</span></div>
+        <div class="resp-row"><span class="resp-401">302</span><span>비관리자 → /main</span></div>
+      </div>
+    </div>
+
+    <!-- POST /admin - deleteUser -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/admin</span>
+        <span class="ep-desc">유저 / 문제집 삭제 (단건 · 일괄)</span>
+        <span class="admin-badge">🛡 ADMIN</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="ep-body">
+        <div class="label">단건 삭제 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">action</td><td class="param-type">string</td><td><code>deleteUser</code> / <code>deleteWorkbook</code></td><td>삭제 대상 유형</td></tr>
+            <tr><td class="param-name">id</td><td class="param-type">long</td><td><code>5</code></td><td>삭제할 ID</td></tr>
+          </tbody>
+        </table>
+        <div class="label">일괄 삭제 파라미터</div>
+        <table class="param-table">
+          <thead><tr><th>이름</th><th>타입</th><th>예시</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">action</td><td class="param-type">string</td><td><code>deleteBulkWorkbooks</code></td><td>일괄 삭제</td></tr>
+            <tr><td class="param-name">ids</td><td class="param-type">string</td><td><code>1,3,7</code></td><td>쉼표 구분 ID 목록</td></tr>
+          </tbody>
+        </table>
+        <div class="label">응답</div>
+        <div class="resp-row"><span class="resp-200">200</span><span>OK</span></div>
+        <div class="resp-row"><span class="resp-400">400</span><span>자기 자신 삭제 시도 / ids 없음</span></div>
+        <div class="resp-row"><span class="resp-500">500</span><span>DB 오류</span></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+function toggle(header) {
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+</script>
+</body>
+</html>

@@ -45,7 +45,7 @@ public class GradeController extends HttpServlet {
             String userAnswer = request.getParameter("q-" + q.getId());
             if (userAnswer == null) userAnswer = "";
 
-            boolean isCorrect = userAnswer.trim().equals(q.getAnswerText().trim());
+            boolean isCorrect = userAnswer.trim().equalsIgnoreCase(q.getAnswerText().trim());
             if (isCorrect) {
                 earnedScore += q.getScore();
                 correctCount++;

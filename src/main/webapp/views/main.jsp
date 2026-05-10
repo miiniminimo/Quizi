@@ -1,5 +1,6 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="c"  uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <c:set var="root" value="${pageContext.request.contextPath}" />
 
 <!DOCTYPE html>
@@ -78,18 +79,30 @@
   </nav>
 
   <div class="p-4 border-t border-slate-100">
-    <div class="flex items-center gap-3 px-2 py-2">
-      <div class="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-600">
-        ${sessionScope.user.name.substring(0,1)}
-      </div>
-      <div class="flex-1 min-w-0">
-        <p class="text-sm font-bold text-slate-700 truncate">${sessionScope.user.name}</p>
-        <p class="text-xs text-slate-400 truncate">${sessionScope.user.email}</p>
-      </div>
-      <a href="${root}/logout" class="text-slate-400 hover:text-red-500 transition-colors" title="로그아웃">
-        <i data-lucide="log-out" class="h-5 w-5"></i>
-      </a>
-    </div>
+    <c:choose>
+      <c:when test="${not empty sessionScope.user}">
+        <div class="flex items-center gap-3 px-2 py-2">
+          <div class="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-600">
+            ${fn:substring(sessionScope.user.name, 0, 1)}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold text-slate-700 truncate">${sessionScope.user.name}</p>
+            <p class="text-xs text-slate-400 truncate">${sessionScope.user.email}</p>
+          </div>
+          <a href="${root}/logout" class="text-slate-400 hover:text-red-500 transition-colors" title="로그아웃">
+            <i data-lucide="log-out" class="h-5 w-5"></i>
+          </a>
+        </div>
+      </c:when>
+      <c:otherwise>
+        <a href="${root}/login" class="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-50 transition-colors">
+          <div class="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+            <i data-lucide="user" class="h-5 w-5"></i>
+          </div>
+          <span class="text-sm font-bold text-slate-500">로그인</span>
+        </a>
+      </c:otherwise>
+    </c:choose>
   </div>
 </aside>
 

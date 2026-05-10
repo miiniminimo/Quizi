@@ -26,7 +26,8 @@ public class WrongNoteDAO {
 
             int[] results = pstmt.executeBatch();
             for (int r : results) {
-                if (r > 0) count++;
+                // Statement.SUCCESS_NO_INFO(-2)도 성공으로 처리, INSERT IGNORE로 중복 시 0
+                if (r > 0 || r == Statement.SUCCESS_NO_INFO) count++;
             }
         } catch (Exception e) { e.printStackTrace(); }
         return count;

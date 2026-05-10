@@ -55,11 +55,29 @@ public class EditController extends HttpServlet {
         request.setCharacterEncoding("UTF-8");
         response.setContentType("application/json;charset=UTF-8");
 
+        // ── 로그인 확인
+        HttpSession session = request.getSession(false);
+        UserDTO user = (session != null) ? (UserDTO) session.getAttribute("user") : null;
+        if (user == null) {
+            response.setStatus(401);
+            response.getWriter().write("{\"status\":\"error\",\"message\":\"로그인이 필요합니다.\"}");
+            return;
+        }
+
         BufferedReader reader = request.getReader();
         Gson gson = new Gson();
         WorkbookDTO workbook = gson.fromJson(reader, WorkbookDTO.class);
 
-        // 정답 필수 검증
+        // ── 소유권 확인 (다른 유저의 문제집 수정 차단)
+        WorkbookDAO dao = new WorkbookDAO();
+        WorkbookDTO existing = dao.selectById(workbook.getId());
+        if (existing == null || !existing.getCreatorId().equals(user.getId())) {
+            response.setStatus(403);
+            response.getWriter().write("{\"status\":\"error\",\"message\":\"수정 권한이 없습니다.\"}");
+            return;
+        }
+
+        // ── 정답 필수 검증
         if (workbook.getQuestions() != null) {
             for (QuestionDTO q : workbook.getQuestions()) {
                 if (q.getAnswerText() == null || q.getAnswerText().trim().isEmpty()) {
@@ -70,7 +88,6 @@ public class EditController extends HttpServlet {
             }
         }
 
-        WorkbookDAO dao = new WorkbookDAO();
         boolean success = dao.updateWorkbook(workbook);
 
         if (success) {

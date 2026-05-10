@@ -50,16 +50,14 @@
         </div>
         <p class="mb-6 text-lg font-bold text-slate-900 pr-24">Q. ${item.question.questionText}</p>
         <div class="grid gap-4 sm:grid-cols-2">
-          <div class="rounded-xl p-4 ${item.isCorrect ? 'bg-slate-50' : 'bg-white border border-red-100'}">
-            <span class="block text-xs font-bold text-slate-400 mb-1">나의 답안</span>
-            <span class="font-bold ${item.isCorrect ? 'text-slate-900' : 'text-red-600'}">${item.userAnswer}</span>
+          <div class="rounded-xl p-4 ${item.isCorrect ? 'bg-green-50 border border-green-100' : 'bg-white border border-red-100'}">
+            <span class="block text-xs font-bold ${item.isCorrect ? 'text-green-500' : 'text-slate-400'} mb-1">나의 답안</span>
+            <span class="font-bold ${item.isCorrect ? 'text-green-700' : 'text-red-600'}">${item.userAnswer}</span>
           </div>
-          <c:if test="${!item.isCorrect}">
-            <div class="rounded-xl bg-blue-50 p-4">
-              <span class="block text-xs font-bold text-blue-400 mb-1">정답</span>
-              <span class="font-bold text-blue-700">${item.question.answerText}</span>
-            </div>
-          </c:if>
+          <div class="rounded-xl bg-blue-50 p-4 border border-blue-100">
+            <span class="block text-xs font-bold text-blue-400 mb-1">정답</span>
+            <span class="font-bold text-blue-700">${item.question.answerText}</span>
+          </div>
         </div>
         <c:if test="${not empty item.question.explanation}">
           <div class="mt-4 pt-4 border-t border-slate-200/50 text-sm text-slate-600">

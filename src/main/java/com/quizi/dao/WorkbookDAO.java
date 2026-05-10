@@ -165,37 +165,45 @@ public class WorkbookDAO {
         return dto;
     }
 
+    /**
+     * 문제집의 모든 문제 + 보기를 단일 LEFT JOIN 쿼리로 조회합니다. (N+1 방지)
+     */
     public List<QuestionDTO> selectQuestions(long workbookId) {
         List<QuestionDTO> list = new ArrayList<>();
-        String sqlQ = "SELECT * FROM questions WHERE workbook_id = ? ORDER BY id ASC";
-        String sqlOpt = "SELECT option_text FROM question_options WHERE question_id = ? ORDER BY option_order ASC";
+        // LEFT JOIN으로 문제와 보기를 한 번에 가져옴 (객관식 외 문제는 opt 컬럼이 null)
+        String sql = "SELECT q.*, o.option_text, o.option_order " +
+                     "FROM questions q " +
+                     "LEFT JOIN question_options o ON o.question_id = q.id " +
+                     "WHERE q.workbook_id = ? " +
+                     "ORDER BY q.id ASC, o.option_order ASC";
 
         try (Connection conn = DBConnection.getConnection();
-             PreparedStatement pstmtQ = conn.prepareStatement(sqlQ)) {
-
-            pstmtQ.setLong(1, workbookId);
-            try (ResultSet rsQ = pstmtQ.executeQuery()) {
-                while (rsQ.next()) {
-                    QuestionDTO q = new QuestionDTO();
-                    q.setId(rsQ.getLong("id"));
-                    q.setWorkbookId(rsQ.getLong("workbook_id"));
-                    q.setQuestionText(rsQ.getString("question_text"));
-                    q.setQuestionType(rsQ.getString("question_type"));
-                    q.setScore(rsQ.getInt("score"));
-                    q.setAnswerText(rsQ.getString("answer_text"));
-                    q.setExplanation(rsQ.getString("explanation"));
-
-                    if ("multiple".equals(q.getQuestionType())) {
-                        List<String> options = new ArrayList<>();
-                        try (PreparedStatement pstmtOpt = conn.prepareStatement(sqlOpt)) {
-                            pstmtOpt.setLong(1, q.getId());
-                            try (ResultSet rsOpt = pstmtOpt.executeQuery()) {
-                                while (rsOpt.next()) options.add(rsOpt.getString("option_text"));
-                            }
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, workbookId);
+            try (ResultSet rs = ps.executeQuery()) {
+                QuestionDTO current = null;
+                while (rs.next()) {
+                    long qId = rs.getLong("id");
+                    // 새 문제 시작
+                    if (current == null || current.getId() != qId) {
+                        current = new QuestionDTO();
+                        current.setId(qId);
+                        current.setWorkbookId(rs.getLong("workbook_id"));
+                        current.setQuestionText(rs.getString("question_text"));
+                        current.setQuestionType(rs.getString("question_type"));
+                        current.setScore(rs.getInt("score"));
+                        current.setAnswerText(rs.getString("answer_text"));
+                        current.setExplanation(rs.getString("explanation"));
+                        if ("multiple".equals(current.getQuestionType())) {
+                            current.setOptions(new ArrayList<>());
                         }
-                        q.setOptions(options);
+                        list.add(current);
                     }
-                    list.add(q);
+                    // 보기 추가
+                    String optText = rs.getString("option_text");
+                    if (optText != null && current.getOptions() != null) {
+                        current.getOptions().add(optText);
+                    }
                 }
             }
         } catch (Exception e) { e.printStackTrace(); }
@@ -217,24 +225,39 @@ public class WorkbookDAO {
         return list;
     }
 
+    /**
+     * 북마크 토글. 동시 요청에도 안전한 단일 트랜잭션으로 처리합니다.
+     * @return true = 북마크 추가됨, false = 북마크 해제됨
+     */
     public boolean toggleBookmark(long userId, long workbookId) {
-        String checkSql = "SELECT 1 FROM bookmarks WHERE user_id=? AND workbook_id=?";
-        boolean exists = false;
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(checkSql)) {
-            pstmt.setLong(1, userId);
-            pstmt.setLong(2, workbookId);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) exists = true;
+        // INSERT IGNORE: 이미 있으면 0행 영향 → 삭제 분기
+        String insertSql = "INSERT IGNORE INTO bookmarks (user_id, workbook_id) VALUES (?, ?)";
+        String deleteSql = "DELETE FROM bookmarks WHERE user_id=? AND workbook_id=?";
+        try (Connection conn = DBConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                int inserted;
+                try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+                    ps.setLong(1, userId);
+                    ps.setLong(2, workbookId);
+                    inserted = ps.executeUpdate();
+                }
+                if (inserted > 0) {
+                    conn.commit();
+                    return true; // 새로 저장됨
+                }
+                // 이미 존재 → 삭제
+                try (PreparedStatement ps = conn.prepareStatement(deleteSql)) {
+                    ps.setLong(1, userId);
+                    ps.setLong(2, workbookId);
+                    ps.executeUpdate();
+                }
+                conn.commit();
+                return false; // 해제됨
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
             }
-            String actionSql = exists ? "DELETE FROM bookmarks WHERE user_id=? AND workbook_id=?"
-                    : "INSERT INTO bookmarks (user_id, workbook_id) VALUES (?, ?)";
-            try (PreparedStatement actionPstmt = conn.prepareStatement(actionSql)) {
-                actionPstmt.setLong(1, userId);
-                actionPstmt.setLong(2, workbookId);
-                actionPstmt.executeUpdate();
-            }
-            return !exists;
         } catch (Exception e) { e.printStackTrace(); return false; }
     }
 

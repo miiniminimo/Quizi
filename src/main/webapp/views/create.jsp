@@ -61,6 +61,16 @@
             <input id="wb-timelimit" type="number" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-right" placeholder="60">
           </div>
         </div>
+        <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <div>
+            <p class="text-sm font-semibold text-slate-700">공개 여부</p>
+            <p class="text-xs text-slate-400 mt-0.5">비공개 시 본인만 열람 가능합니다</p>
+          </div>
+          <button type="button" id="visibility-toggle" onclick="toggleVisibility()"
+                  class="relative inline-flex h-6 w-11 items-center rounded-full bg-blue-600 transition-colors focus:outline-none">
+            <span id="visibility-dot" class="inline-block h-4 w-4 translate-x-6 transform rounded-full bg-white shadow transition-transform"></span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -81,6 +91,20 @@
   let questions = [];
   let workbookId = 0;
   let currentMode = '${mode}';
+  let isPublicValue = true;
+
+  function toggleVisibility() {
+    isPublicValue = !isPublicValue;
+    const toggle = document.getElementById('visibility-toggle');
+    const dot = document.getElementById('visibility-dot');
+    if (isPublicValue) {
+      toggle.classList.replace('bg-slate-300', 'bg-blue-600');
+      dot.classList.replace('translate-x-1', 'translate-x-6');
+    } else {
+      toggle.classList.replace('bg-blue-600', 'bg-slate-300');
+      dot.classList.replace('translate-x-6', 'translate-x-1');
+    }
+  }
 
   function init() {
     const editText = document.getElementById('data-edit').textContent;
@@ -98,6 +122,14 @@
       document.getElementById('wb-timelimit').value = data.timeLimit || 60;
       questions = data.questions || [];
       if (data.id) workbookId = data.id;
+      // 공개 여부 초기화 (수정 모드)
+      if (data.isPublic === false) {
+        isPublicValue = false;
+        const toggle = document.getElementById('visibility-toggle');
+        const dot = document.getElementById('visibility-dot');
+        toggle.classList.replace('bg-blue-600', 'bg-slate-300');
+        dot.classList.replace('translate-x-6', 'translate-x-1');
+      }
     } else {
       addQuestion();
     }
@@ -167,6 +199,7 @@
       subject: document.getElementById('wb-subject').value,
       difficulty: document.getElementById('wb-difficulty').value,
       timeLimit: parseInt(document.getElementById('wb-timelimit').value) || 60,
+      isPublic: isPublicValue,
       questions: questions
     };
 

@@ -1,37 +1,58 @@
 package com.quizi.dao;
 
 import com.quizi.dto.QuestionDTO;
+import com.quizi.util.ConfigManager;
 import com.quizi.util.DBConnection;
 
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 유저별 오늘의 문제 기능을 담당하는 DAO.
+ * 유저별 퀴즈 문제 배정을 담당하는 DAO.
  *
  * 테이블 의존:
- *   daily_quiz_log     — 유저×날짜별 문제 배정
+ *   daily_quiz_log     — 유저별 문제 배정 이력 (시간 기반, 주기마다 갱신)
  *   daily_quiz_answers — 유저의 답변 기록
  *   daily_quiz_topic   — 유저의 주제 설정
+ *
+ * quiz.interval.minutes (config.properties) 값에 따라
+ * Slack 전송 주기와 웹 문제 갱신 주기가 함께 결정됩니다.
  */
 public class DailyQuizDAO {
 
+    private int getIntervalMinutes() {
+        String val = ConfigManager.getProperty("quiz.interval.minutes");
+        if (val == null || val.isBlank()) return 10;
+        try { return Integer.parseInt(val.trim()); }
+        catch (NumberFormatException e) { return 10; }
+    }
+
     // ──────────────────────────────────────────────
-    // 오늘의 문제 조회 / 생성 (lazy)
+    // 문제 조회 / 생성 (시간 기반 lazy)
     // ──────────────────────────────────────────────
 
     /**
-     * 오늘 유저에게 배정된 문제를 반환합니다.
-     * 아직 배정되지 않았으면 주제를 참고해 무작위로 선택 후 로그에 기록합니다.
+     * 최근 N분 이내에 배정된 문제가 있으면 반환하고,
+     * 없으면 주제 기반으로 새 문제를 선택해 로그에 기록합니다.
+     * (웹 페이지용 — 같은 주기 내에서는 동일 문제 유지)
      *
      * @return {logId, question(QuestionDTO)} 또는 빈 Map (DB에 문제 없음)
      */
-    public Map<String, Object> getOrCreateTodayEntry(long userId) {
-        // 오늘 이미 배정된 항목이 있으면 바로 반환
-        Map<String, Object> existing = getTodayLogEntry(userId);
+    public Map<String, Object> getOrCreateEntry(long userId) {
+        Map<String, Object> existing = getLatestEntry(userId);
         if (existing != null) return existing;
 
-        // 없으면 새로 배정
+        return forceNewEntry(userId);
+    }
+
+    /**
+     * 무조건 새 문제를 배정합니다.
+     * (스케줄러용 — 매 주기마다 반드시 새 문제 생성)
+     *
+     * @return {logId, question(QuestionDTO)} 또는 빈 Map (DB에 문제 없음)
+     */
+    public Map<String, Object> forceNewEntry(long userId) {
         String topic = getUserTopic(userId);
         QuestionDTO q = pickQuestion(userId, topic);
         if (q == null) return Collections.emptyMap();
@@ -45,18 +66,24 @@ public class DailyQuizDAO {
         return result;
     }
 
-    /** 오늘 배정된 로그 항목을 반환합니다. 없으면 null. */
-    public Map<String, Object> getTodayLogEntry(long userId) {
+    /**
+     * 최근 N분 이내 배정된 로그 항목을 반환합니다. 없으면 null.
+     * (N = quiz.interval.minutes in config.properties)
+     */
+    public Map<String, Object> getLatestEntry(long userId) {
+        int interval = getIntervalMinutes();
         String sql = "SELECT l.id AS log_id, q.*, w.title AS workbook_title " +
                      "FROM daily_quiz_log l " +
                      "JOIN questions q ON l.question_id = q.id " +
                      "JOIN workbooks w ON q.workbook_id = w.id " +
-                     "WHERE l.user_id = ? AND l.sent_date = CURDATE()";
+                     "WHERE l.user_id = ? AND l.created_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE) " +
+                     "ORDER BY l.created_at DESC LIMIT 1";
         String sqlOpt = "SELECT option_text FROM question_options WHERE question_id = ? ORDER BY option_order";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, userId);
+            ps.setInt(2, interval);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return null;
 
@@ -206,11 +233,74 @@ public class DailyQuizDAO {
     }
 
     // ──────────────────────────────────────────────
+    // 주제 설정 유저 목록
+    // ──────────────────────────────────────────────
+
+    /** daily_quiz_topic에 주제를 등록한 모든 유저 ID를 반환합니다. */
+    public List<Long> getAllTopicUserIds() {
+        List<Long> ids = new ArrayList<>();
+        String sql = "SELECT user_id FROM daily_quiz_topic WHERE topic IS NOT NULL AND topic != ''";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) ids.add(rs.getLong("user_id"));
+        } catch (Exception e) { e.printStackTrace(); }
+        return ids;
+    }
+
+    // ──────────────────────────────────────────────
+    // Slack 전송용 주제 기반 랜덤 선택
+    // ──────────────────────────────────────────────
+
+    /**
+     * Slack 알림용 문제를 선택합니다.
+     * daily_quiz_topic 테이블에 등록된 주제들 중 하나를 무작위로 골라,
+     * 해당 주제와 연관된 문제를 반환합니다.
+     * 주제가 하나도 없으면 전체 문제 중 무작위 선택.
+     */
+    public QuestionDTO pickQuestionForSlack() {
+        // 1. 등록된 모든 주제 수집
+        List<String> topics = new ArrayList<>();
+        String sqlTopics = "SELECT DISTINCT topic FROM daily_quiz_topic WHERE topic IS NOT NULL AND topic != ''";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sqlTopics);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) topics.add(rs.getString("topic"));
+        } catch (Exception e) { e.printStackTrace(); }
+
+        // 2. 주제 중 하나를 랜덤 선택 (없으면 null → 전체 랜덤)
+        String topic = topics.isEmpty() ? null
+                : topics.get(ThreadLocalRandom.current().nextInt(topics.size()));
+
+        // 3. 주제 기반으로 문제 선택 (userId=null → 최근 제외 없이)
+        String sqlOpt = "SELECT option_text FROM question_options WHERE question_id = ? ORDER BY option_order";
+
+        if (topic != null) {
+            String like = "%" + topic + "%";
+            String sqlIds = "SELECT q.id FROM questions q JOIN workbooks w ON q.workbook_id = w.id " +
+                            "WHERE (w.subject LIKE ? OR w.title LIKE ?)";
+            Long qId = pickRandomId(sqlIds, like, like, null);
+            if (qId != null) {
+                System.out.printf("[QuizScheduler] 주제 '%s' 기반 문제 선택 (id=%d)%n", topic, qId);
+                return fetchById(qId, sqlOpt);
+            }
+        }
+
+        // 4. Fallback: 전체 문제 중 랜덤
+        String sqlAll = "SELECT q.id FROM questions q JOIN workbooks w ON q.workbook_id = w.id";
+        Long qId = pickRandomId(sqlAll, null, null, null);
+        if (qId != null) return fetchById(qId, sqlOpt);
+
+        return null;
+    }
+
+    // ──────────────────────────────────────────────
     // private helpers
     // ──────────────────────────────────────────────
 
     private long insertLog(long userId, long questionId) {
-        String sql = "INSERT IGNORE INTO daily_quiz_log (user_id, question_id, sent_date) VALUES (?, ?, CURDATE())";
+        String sql = "INSERT INTO daily_quiz_log (user_id, question_id, sent_date, created_at) " +
+                     "VALUES (?, ?, CURDATE(), NOW())";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setLong(1, userId);
@@ -219,9 +309,6 @@ public class DailyQuizDAO {
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) return rs.getLong(1);
             }
-            // INSERT IGNORE로 인해 키가 없으면 이미 존재 → 오늘 항목 조회
-            Map<String, Object> existing = getTodayLogEntry(userId);
-            if (existing != null) return (Long) existing.get("logId");
         } catch (Exception e) { e.printStackTrace(); }
         return -1;
     }
@@ -230,67 +317,68 @@ public class DailyQuizDAO {
      * 주제를 기반으로 문제를 선택합니다.
      * 최근 30일간 배정된 문제는 제외하여 반복을 줄입니다.
      * 주제와 일치하는 문제가 없으면 완전 무작위로 선택합니다.
+     *
+     * ORDER BY RAND() 대신 후보 ID 목록에서 무작위 선택하는 방식으로 성능 개선:
+     * - 조건에 맞는 question_id만 먼저 가져온 뒤 Java에서 random 선택
+     * - 대규모 데이터에서 전체 테이블 정렬(ORDER BY RAND) 회피
      */
     private QuestionDTO pickQuestion(long userId, String topic) {
         String sqlOpt = "SELECT option_text FROM question_options WHERE question_id = ? ORDER BY option_order";
-        String recentExclude = "(SELECT question_id FROM daily_quiz_log " +
-                               " WHERE user_id = ? AND sent_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY))";
+        String recentExcludeClause = "q.id NOT IN (SELECT question_id FROM daily_quiz_log " +
+                                     "WHERE user_id = ? AND sent_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY))";
 
-        // 주제 기반 선택
+        // ── 1. 주제 기반 후보 ID 조회
         if (topic != null && !topic.isBlank()) {
-            String sql = "SELECT q.*, w.title AS workbook_title FROM questions q " +
-                         "JOIN workbooks w ON q.workbook_id = w.id " +
-                         "WHERE (w.subject LIKE ? OR w.title LIKE ?) " +
-                         "AND q.id NOT IN " + recentExclude +
-                         " ORDER BY RAND() LIMIT 1";
-            QuestionDTO q = executePickQuery(sql, topic, userId, sqlOpt);
-            if (q != null) return q;
+            String like = "%" + topic + "%";
+            String sqlIds = "SELECT q.id FROM questions q JOIN workbooks w ON q.workbook_id = w.id " +
+                            "WHERE (w.subject LIKE ? OR w.title LIKE ?) AND " + recentExcludeClause;
+            Long qId = pickRandomId(sqlIds, like, like, userId);
+            if (qId != null) return fetchById(qId, sqlOpt);
         }
 
-        // 주제 없거나 매칭 없으면 완전 무작위
-        String sqlRandom = "SELECT q.*, w.title AS workbook_title FROM questions q " +
-                           "JOIN workbooks w ON q.workbook_id = w.id " +
-                           "WHERE q.id NOT IN " + recentExclude +
-                           " ORDER BY RAND() LIMIT 1";
-        QuestionDTO q = executePickQueryRandom(sqlRandom, userId, sqlOpt);
-        if (q != null) return q;
+        // ── 2. 주제 무관 후보 ID 조회 (최근 제외)
+        String sqlIds2 = "SELECT q.id FROM questions q JOIN workbooks w ON q.workbook_id = w.id " +
+                         "WHERE " + recentExcludeClause;
+        Long qId2 = pickRandomId(sqlIds2, null, null, userId);
+        if (qId2 != null) return fetchById(qId2, sqlOpt);
 
-        // 최근 제외 없이 완전 무작위 (DB에 문제가 매우 적을 때 fallback)
-        String sqlFallback = "SELECT q.*, w.title AS workbook_title FROM questions q " +
-                             "JOIN workbooks w ON q.workbook_id = w.id ORDER BY RAND() LIMIT 1";
-        return executePickQueryFallback(sqlFallback, sqlOpt);
-    }
+        // ── 3. Fallback: 제한 없이 전체에서 선택 (DB에 문제가 매우 적을 때)
+        String sqlAll = "SELECT q.id FROM questions q JOIN workbooks w ON q.workbook_id = w.id";
+        Long qId3 = pickRandomId(sqlAll, null, null, null);
+        if (qId3 != null) return fetchById(qId3, sqlOpt);
 
-    private QuestionDTO executePickQuery(String sql, String topic, long userId, String sqlOpt) {
-        String like = "%" + topic + "%";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, like);
-            ps.setString(2, like);
-            ps.setLong(3, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) return buildQuestion(rs, conn, sqlOpt);
-            }
-        } catch (Exception e) { e.printStackTrace(); }
         return null;
     }
 
-    private QuestionDTO executePickQueryRandom(String sql, long userId, String sqlOpt) {
+    /**
+     * 후보 ID 목록을 가져온 뒤 Java ThreadLocalRandom으로 하나를 선택합니다.
+     * params: [like1, like2 (nullable), userId (nullable)]
+     */
+    private Long pickRandomId(String sql, String like1, String like2, Long userId) {
+        List<Long> ids = new ArrayList<>();
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, userId);
+            int idx = 1;
+            if (like1 != null) { ps.setString(idx++, like1); ps.setString(idx++, like2); }
+            if (userId != null) ps.setLong(idx, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) ids.add(rs.getLong(1));
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        if (ids.isEmpty()) return null;
+        return ids.get(ThreadLocalRandom.current().nextInt(ids.size()));
+    }
+
+    /** 문제 ID로 단건 조회 */
+    private QuestionDTO fetchById(long questionId, String sqlOpt) {
+        String sql = "SELECT q.*, w.title AS workbook_title FROM questions q " +
+                     "JOIN workbooks w ON q.workbook_id = w.id WHERE q.id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, questionId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return buildQuestion(rs, conn, sqlOpt);
             }
-        } catch (Exception e) { e.printStackTrace(); }
-        return null;
-    }
-
-    private QuestionDTO executePickQueryFallback(String sql, String sqlOpt) {
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            if (rs.next()) return buildQuestion(rs, conn, sqlOpt);
         } catch (Exception e) { e.printStackTrace(); }
         return null;
     }

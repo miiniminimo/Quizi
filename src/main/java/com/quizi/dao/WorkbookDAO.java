@@ -3,19 +3,31 @@ package com.quizi.dao;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import com.quizi.util.DBConnection;
 import com.quizi.dto.WorkbookDTO;
 import com.quizi.dto.QuestionDTO;
 
 public class WorkbookDAO {
 
-    // keyword, difficulty, folderId, userId(폴더는 내 것만 봐야하므로)
+    /**
+     * 문제집 검색 / 필터.
+     * - 공개(is_public=1) 문제집 또는 본인 문제집만 표시
+     * - folderId 지정 시 해당 폴더 내 본인 문제집만 조회
+     */
     public List<WorkbookDTO> searchWorkbooks(String keyword, String difficulty, String folderId, Long userId) {
         List<WorkbookDTO> list = new ArrayList<>();
 
         StringBuilder sql = new StringBuilder(
-                "SELECT w.*, u.name as creator_name FROM workbooks w JOIN users u ON w.creator_id = u.id WHERE 1=1"
+            "SELECT w.*, u.name as creator_name FROM workbooks w JOIN users u ON w.creator_id = u.id WHERE 1=1"
         );
+
+        // 공개/비공개 필터: 공개 문제집 또는 본인 문제집
+        if (userId != null) {
+            sql.append(" AND (w.is_public = 1 OR w.creator_id = ?)");
+        } else {
+            sql.append(" AND w.is_public = 1");
+        }
 
         // 검색어
         if (keyword != null && !keyword.trim().isEmpty()) {
@@ -27,7 +39,7 @@ public class WorkbookDAO {
             sql.append(" AND w.difficulty = ?");
         }
 
-        // 폴더 필터링: folderId가 있으면 해당 폴더의 문제집만 조회
+        // 폴더 필터: 본인 문제집 중 해당 폴더만
         if (userId != null && folderId != null && !folderId.isEmpty()) {
             sql.append(" AND w.folder_id = ? AND w.creator_id = ?");
         }
@@ -39,11 +51,15 @@ public class WorkbookDAO {
 
             int paramIndex = 1;
 
+            if (userId != null) {
+                pstmt.setLong(paramIndex++, userId);
+            }
+
             if (keyword != null && !keyword.trim().isEmpty()) {
-                String likePattern = "%" + keyword + "%";
-                pstmt.setString(paramIndex++, likePattern);
-                pstmt.setString(paramIndex++, likePattern);
-                pstmt.setString(paramIndex++, likePattern);
+                String like = "%" + keyword + "%";
+                pstmt.setString(paramIndex++, like);
+                pstmt.setString(paramIndex++, like);
+                pstmt.setString(paramIndex++, like);
             }
 
             if (difficulty != null && !difficulty.trim().isEmpty() && !difficulty.equals("ALL")) {
@@ -56,10 +72,7 @@ public class WorkbookDAO {
             }
 
             try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    WorkbookDTO dto = mapRowToWorkbook(rs);
-                    list.add(dto);
-                }
+                while (rs.next()) list.add(mapRowToWorkbook(rs));
             }
         } catch (Exception e) { e.printStackTrace(); }
         return list;
@@ -79,7 +92,7 @@ public class WorkbookDAO {
             conn = DBConnection.getConnection();
             conn.setAutoCommit(false);
 
-            String sqlWb = "INSERT INTO workbooks (creator_id, title, description, subject, difficulty, time_limit) VALUES (?, ?, ?, ?, ?, ?)";
+            String sqlWb = "INSERT INTO workbooks (creator_id, title, description, subject, difficulty, time_limit, is_public) VALUES (?, ?, ?, ?, ?, ?, ?)";
             pstmt = conn.prepareStatement(sqlWb, Statement.RETURN_GENERATED_KEYS);
             pstmt.setLong(1, workbook.getCreatorId());
             pstmt.setString(2, workbook.getTitle());
@@ -87,6 +100,7 @@ public class WorkbookDAO {
             pstmt.setString(4, workbook.getSubject());
             pstmt.setString(5, workbook.getDifficulty());
             pstmt.setInt(6, workbook.getTimeLimit());
+            pstmt.setBoolean(7, workbook.isPublic());
             pstmt.executeUpdate();
 
             rs = pstmt.getGeneratedKeys();
@@ -119,14 +133,15 @@ public class WorkbookDAO {
             conn = DBConnection.getConnection();
             conn.setAutoCommit(false);
 
-            String sqlWb = "UPDATE workbooks SET title=?, description=?, subject=?, difficulty=?, time_limit=? WHERE id=?";
+            String sqlWb = "UPDATE workbooks SET title=?, description=?, subject=?, difficulty=?, time_limit=?, is_public=? WHERE id=?";
             pstmt = conn.prepareStatement(sqlWb);
             pstmt.setString(1, workbook.getTitle());
             pstmt.setString(2, workbook.getDescription());
             pstmt.setString(3, workbook.getSubject());
             pstmt.setString(4, workbook.getDifficulty());
             pstmt.setInt(5, workbook.getTimeLimit());
-            pstmt.setLong(6, workbook.getId());
+            pstmt.setBoolean(6, workbook.isPublic());
+            pstmt.setLong(7, workbook.getId());
             int affected = pstmt.executeUpdate();
 
             if(affected == 0) throw new SQLException("Update failed");
@@ -291,41 +306,56 @@ public class WorkbookDAO {
 
     /**
      * DB에서 무작위 문제 하나를 뽑아 반환합니다. (일일 슬랙 알림용)
-     * 반환 객체의 workbookId 필드에는 문제집 ID가, questionText 등에 내용이 담깁니다.
-     * 문제집 제목은 별도 selectById()로 조회하거나 이 쿼리 결과에서 파싱하세요.
+     *
+     * ORDER BY RAND() 대신 COUNT + OFFSET 방식으로 성능 개선:
+     * - ORDER BY RAND()는 전체 테이블을 정렬(O(n log n))
+     * - LIMIT 1 OFFSET random은 인덱스 스캔(O(n))으로 대규모 데이터에서 훨씬 빠름
      */
     public QuestionDTO selectRandomQuestion() {
-        String sql = "SELECT q.*, w.title AS workbook_title FROM questions q " +
-                     "JOIN workbooks w ON q.workbook_id = w.id " +
-                     "ORDER BY RAND() LIMIT 1";
+        String sqlCount = "SELECT COUNT(*) FROM questions q JOIN workbooks w ON q.workbook_id = w.id";
+        String sqlSelect = "SELECT q.*, w.title AS workbook_title FROM questions q " +
+                           "JOIN workbooks w ON q.workbook_id = w.id " +
+                           "LIMIT 1 OFFSET ?";
         String sqlOpt = "SELECT option_text FROM question_options WHERE question_id = ? ORDER BY option_order ASC";
 
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql);
-             ResultSet rs = pstmt.executeQuery()) {
+        try (Connection conn = DBConnection.getConnection()) {
+            // 1. 총 문제 수 조회
+            int total;
+            try (PreparedStatement ps = conn.prepareStatement(sqlCount);
+                 ResultSet rs = ps.executeQuery()) {
+                if (!rs.next() || rs.getInt(1) == 0) return null;
+                total = rs.getInt(1);
+            }
 
-            if (rs.next()) {
-                QuestionDTO q = new QuestionDTO();
-                q.setId(rs.getLong("id"));
-                q.setWorkbookId(rs.getLong("workbook_id"));
-                q.setQuestionText(rs.getString("question_text"));
-                q.setQuestionType(rs.getString("question_type"));
-                q.setScore(rs.getInt("score"));
-                q.setAnswerText(rs.getString("answer_text"));
-                q.setExplanation(rs.getString("explanation"));
-                q.setWorkbookTitle(rs.getString("workbook_title"));
+            // 2. 무작위 offset 선택 후 단일 조회
+            int offset = ThreadLocalRandom.current().nextInt(total);
+            try (PreparedStatement ps = conn.prepareStatement(sqlSelect)) {
+                ps.setInt(1, offset);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) return null;
 
-                if ("multiple".equals(q.getQuestionType())) {
-                    List<String> options = new ArrayList<>();
-                    try (PreparedStatement pstmtOpt = conn.prepareStatement(sqlOpt)) {
-                        pstmtOpt.setLong(1, q.getId());
-                        try (ResultSet rsOpt = pstmtOpt.executeQuery()) {
-                            while (rsOpt.next()) options.add(rsOpt.getString("option_text"));
+                    QuestionDTO q = new QuestionDTO();
+                    q.setId(rs.getLong("id"));
+                    q.setWorkbookId(rs.getLong("workbook_id"));
+                    q.setQuestionText(rs.getString("question_text"));
+                    q.setQuestionType(rs.getString("question_type"));
+                    q.setScore(rs.getInt("score"));
+                    q.setAnswerText(rs.getString("answer_text"));
+                    q.setExplanation(rs.getString("explanation"));
+                    q.setWorkbookTitle(rs.getString("workbook_title"));
+
+                    if ("multiple".equals(q.getQuestionType())) {
+                        List<String> options = new ArrayList<>();
+                        try (PreparedStatement psOpt = conn.prepareStatement(sqlOpt)) {
+                            psOpt.setLong(1, q.getId());
+                            try (ResultSet rsOpt = psOpt.executeQuery()) {
+                                while (rsOpt.next()) options.add(rsOpt.getString("option_text"));
+                            }
                         }
+                        q.setOptions(options);
                     }
-                    q.setOptions(options);
+                    return q;
                 }
-                return q;
             }
         } catch (Exception e) { e.printStackTrace(); }
         return null;
@@ -351,6 +381,7 @@ public class WorkbookDAO {
         dto.setTimeLimit(rs.getInt("time_limit"));
         dto.setLikesCount(rs.getInt("likes_count"));
         dto.setPlaysCount(rs.getInt("plays_count"));
+        dto.setPublic(rs.getBoolean("is_public"));
         dto.setCreatorName(rs.getString("creator_name"));
         dto.setCreatedAt(rs.getTimestamp("created_at"));
         return dto;

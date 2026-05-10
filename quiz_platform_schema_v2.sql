@@ -50,3 +50,12 @@ CREATE TABLE `daily_quiz_answers` (
   CONSTRAINT `fk_dqa_log`
     FOREIGN KEY (`log_id`)  REFERENCES `daily_quiz_log`  (`id`) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+-- 6. workbooks 테이블 공개/비공개 컬럼 추가
+--    이미 존재하는 경우 오류 발생 → 직접 확인 후 실행하세요
+ALTER TABLE `workbooks`
+  ADD COLUMN `is_public` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1=공개, 0=비공개'
+  AFTER `plays_count`;
+
+-- 기존 문제집 전부 공개로 초기화
+UPDATE `workbooks` SET `is_public` = 1 WHERE `is_public` IS NULL;

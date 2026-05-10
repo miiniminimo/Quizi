@@ -54,7 +54,7 @@ public class MainController extends HttpServlet {
         // 오늘의 문제 (로그인 유저만, lazy 생성)
         if (user != null) {
             DailyQuizDAO dailyDao = new DailyQuizDAO();
-            Map<String, Object> entry = dailyDao.getOrCreateTodayEntry(user.getId());
+            Map<String, Object> entry = dailyDao.getOrCreateEntry(user.getId());
             if (!entry.isEmpty()) {
                 request.setAttribute("dailyQuestion", entry.get("question"));
                 request.setAttribute("dailyLogId",    entry.get("logId"));

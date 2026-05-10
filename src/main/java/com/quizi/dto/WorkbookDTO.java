@@ -15,6 +15,7 @@ public class WorkbookDTO {
     private int playsCount;
     private String creatorName;
     private Timestamp createdAt;
+    private boolean isPublic = true; // 기본값: 공개
 
     // 문제 만들기에서 JSON 파싱을 위해 필요한 리스트
     private List<QuestionDTO> questions;
@@ -42,6 +43,9 @@ public class WorkbookDTO {
     public void setCreatorName(String creatorName) { this.creatorName = creatorName; }
     public Timestamp getCreatedAt() { return createdAt; }
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
+
+    public boolean isPublic() { return isPublic; }
+    public void setPublic(boolean isPublic) { this.isPublic = isPublic; }
 
     public List<QuestionDTO> getQuestions() { return questions; }
     public void setQuestions(List<QuestionDTO> questions) { this.questions = questions; }

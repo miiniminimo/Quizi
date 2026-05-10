@@ -1,5 +1,6 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="c"  uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <c:set var="root" value="${pageContext.request.contextPath}" />
 
 <!DOCTYPE html>
@@ -26,9 +27,9 @@
     <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
         <div class="relative border-b border-slate-100 bg-slate-50 p-12 text-center overflow-hidden">
             <div class="relative z-10">
-                <span class="mb-6 inline-block rounded-full bg-white px-4 py-1.5 text-sm font-bold text-blue-600 shadow-sm ring-1 ring-blue-100">${workbook.subject}</span>
-                <h1 class="text-4xl font-extrabold text-slate-900 mb-4">${workbook.title}</h1>
-                <p class="text-lg text-slate-600 max-w-2xl mx-auto">${workbook.description}</p>
+                <span class="mb-6 inline-block rounded-full bg-white px-4 py-1.5 text-sm font-bold text-blue-600 shadow-sm ring-1 ring-blue-100">${fn:escapeXml(workbook.subject)}</span>
+                <h1 class="text-4xl font-extrabold text-slate-900 mb-4">${fn:escapeXml(workbook.title)}</h1>
+                <p class="text-lg text-slate-600 max-w-2xl mx-auto">${fn:escapeXml(workbook.description)}</p>
             </div>
         </div>
         <div class="p-10 flex flex-col items-center">

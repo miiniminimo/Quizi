@@ -1,5 +1,6 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="c"  uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <%-- [핵심] 루트 경로 변수 선언 --%>
 <c:set var="root" value="${pageContext.request.contextPath}" />
 
@@ -36,15 +37,15 @@
             <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-lg font-bold text-white">${status.index + 1}</span>
             <span class="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">${q.score}점</span>
           </div>
-          <h3 class="mb-8 text-xl font-bold text-slate-900 leading-relaxed">${q.questionText}</h3>
+          <h3 class="mb-8 text-xl font-bold text-slate-900 leading-relaxed">${fn:escapeXml(q.questionText)}</h3>
 
           <c:choose>
             <c:when test="${q.questionType == 'multiple'}">
               <div class="space-y-3">
                 <c:forEach var="opt" items="${q.options}">
                   <label class="group flex cursor-pointer items-center gap-4 rounded-xl border border-slate-100 p-4 transition-all hover:bg-slate-50 hover:border-slate-300">
-                    <input type="radio" name="q-${q.id}" value="${opt}" class="h-4 w-4 accent-blue-600">
-                    <span class="text-base font-medium text-slate-700">${opt}</span>
+                    <input type="radio" name="q-${q.id}" value="${fn:escapeXml(opt)}" class="h-4 w-4 accent-blue-600">
+                    <span class="text-base font-medium text-slate-700">${fn:escapeXml(opt)}</span>
                   </label>
                 </c:forEach>
               </div>
